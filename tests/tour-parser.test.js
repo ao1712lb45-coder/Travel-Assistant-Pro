@@ -13,6 +13,14 @@ test('FD airline code is Thai AirAsia, not China Airlines', () => {
   assert.notEqual(result.airline, '中華航空');
 });
 
+test('tour code airline wins when page flight text conflicts', () => {
+  const result = parser.parse({
+    url: 'https://www.besttour.com.tw/itinerary/SPK06FD261105AB',
+    text: '團號 SPK06FD261105AB\n參考航班\n中華航空 CI123\n最低售價 32,800元起\n出發日期 2026/11/05'
+  });
+  assert.equal(result.airline, '泰國亞洲航空');
+});
+
 test('CI remains China Airlines', () => {
   const result = parser.parseTourCode('BKK05CI261111SM');
   assert.equal(result.airline, '中華航空');
