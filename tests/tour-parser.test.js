@@ -18,3 +18,16 @@ test('CI remains China Airlines', () => {
   assert.equal(result.airline, '中華航空');
 });
 
+test('supports airline codes that contain a number', () => {
+  assert.equal(parser.parseTourCode('CTU05D7261111SM').airline, '亞洲航空X');
+  assert.equal(parser.parseTourCode('CTU053U261111SM').airline, '四川航空');
+});
+
+test('includes the common airline code table from the supplied PDF', () => {
+  assert.equal(parser.AIRLINES.AE, '華信航空');
+  assert.equal(parser.AIRLINES.UO, '香港快運航空');
+  assert.equal(parser.AIRLINES.QR, '卡達航空');
+  assert.equal(parser.AIRLINES.LH, '德國漢莎航空');
+  assert.ok(Object.keys(parser.AIRLINES).length >= 100);
+});
+
