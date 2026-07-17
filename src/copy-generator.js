@@ -76,7 +76,9 @@
       `旅伴丟來這團，你會先看哪個？\n\n${h}\n\n${d.title}\n${valid(d.price) ? d.price : ''}`,
       `把這團放進候選清單了。\n\n${d.title}\n${h}\n${valid(d.airline) ? `${d.airline}，` : ''}${valid(d.dates) ? d.dates : ''}\n${valid(d.price) ? d.price : ''}`
     ];
-    return `${decorator(variant)}\n${versions[(variant - 1) % versions.length]}`.replace(/\n{3,}/g, '\n\n').trim();
+    const url = valid(d.url) ? `🔗 完整行程：${d.url}` : '';
+    const footer = [url, contact(d)].filter(Boolean).join('\n');
+    return `${decorator(variant)}\n${versions[(variant - 1) % versions.length]}${footer ? `\n\n${footer}` : ''}`.replace(/\n{3,}/g, '\n\n').trim();
   }
   function generateSet(data, requestedStyle = 'auto', variant = 1) {
     const normalized = { ...data, title: clean(data.title) || '行程名稱待確認' };
