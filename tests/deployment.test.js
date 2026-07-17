@@ -33,6 +33,9 @@ test('online deployment protects the app but leaves health checks available', as
     const authorized = await fetch(`${base}/`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(authorized.status, 200);
     assert.match(await authorized.text(), /旅遊助手V1\.0/);
+    const assistant = await fetch(`${base}/src/local-assistant.js`, { headers:{ authorization:basic('team','secret') } });
+    assert.equal(assistant.status, 200);
+    assert.match(await assistant.text(), /免費內建助手/);
     assert.equal(authorized.headers.get('x-frame-options'), 'DENY');
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
