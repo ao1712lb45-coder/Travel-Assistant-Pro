@@ -20,9 +20,18 @@ class FetchError extends Error {
 }
 
 function validateItineraryUrl(value) {
+  const input = String(value || '').trim();
+  const tourCode = input.toUpperCase();
+  if (/^[A-Z0-9]{10,30}$/.test(tourCode)) {
+    return {
+      url: new URL(`https://www.besttour.com.tw/itinerary/${tourCode}`),
+      provider: 'besttour',
+      code: tourCode
+    };
+  }
   let url;
-  try { url = new URL(String(value || '').trim()); }
-  catch { throw new FetchError('INVALID_URL', '請輸入完整的 Besttour 或 ITTMS 行程網址。'); }
+  try { url = new URL(input); }
+  catch { throw new FetchError('INVALID_URL', '請輸入團號，或完整的 Besttour／ITTMS 行程網址。'); }
   if (url.protocol !== 'https:') throw new FetchError('INVALID_PROTOCOL', '官網網址必須以 https:// 開頭。');
 
   const host = url.hostname.toLowerCase();

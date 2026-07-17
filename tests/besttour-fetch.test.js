@@ -93,6 +93,13 @@ test('serves both the new and legacy fetch endpoints', async () => {
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
+test('accepts a tour code and converts it to a Besttour itinerary URL', () => {
+  const result = validateItineraryUrl('GES10BR261118PAK');
+  assert.equal(result.provider, 'besttour');
+  assert.equal(result.code, 'GES10BR261118PAK');
+  assert.equal(result.url.href, 'https://www.besttour.com.tw/itinerary/GES10BR261118PAK');
+});
+
 test('imports matching trips from the official Besttour search API', async () => {
   const mockFetch = async (url, options) => {
     assert.match(String(url), /query_List_all\.asp/);

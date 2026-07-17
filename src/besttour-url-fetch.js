@@ -3,6 +3,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const urlInput = $('url');
+  const codeInput = $('tourCodeInput');
   const openButton = $('openUrl');
   if (!urlInput || !openButton) return;
 
@@ -19,7 +20,7 @@
   function show(text, type) { message.textContent = text; message.className = 'status show ' + (type || 'warn'); }
   function setValue(id, value) { const element = $(id); if (element) element.value = value == null ? '' : value; }
   function applyResult(result, pageText, normalizedUrl) {
-    setValue('rawText', pageText); setValue('url', normalizedUrl); setValue('code', result.code);
+    setValue('rawText', pageText); setValue('url', normalizedUrl); setValue('tourCodeInput', result.code); setValue('code', result.code);
     setValue('days', result.days ? result.days + '日' : ''); setValue('mainTitle', result.title); setValue('subtitle', result.subtitle);
     setValue('price', result.price); setValue('airline', result.airline); setValue('dates', result.dates.join('、'));
     setValue('highlights', result.highlights.join('\n'));
@@ -30,8 +31,8 @@
   }
 
   fetchButton.addEventListener('click', async () => {
-    const rawUrl = urlInput.value.trim();
-    if (!rawUrl) return show('請貼上 Besttour 或 ITTMS 的單一行程網址。', 'warn');
+    const rawUrl = (codeInput && codeInput.value.trim()) || urlInput.value.trim();
+    if (!rawUrl) return show('請輸入團號，或貼上 Besttour／ITTMS 的單一行程網址。', 'warn');
     fetchButton.disabled = true; fetchButton.textContent = '正在讀取官網…';
     show('正在讀取官方行程、出發日期、價格與航班資料…', 'warn');
     try {
@@ -50,5 +51,15 @@
       const localFile = location.protocol === 'file:';
       show((localFile ? '請雙擊 START_SERVER.bat 後再使用自動抓取。' : error.message) + ' 仍可使用下方「貼上官網整頁文字」備援。', 'err');
     } finally { fetchButton.disabled = false; fetchButton.textContent = '自動抓取並解析'; }
+  });
+  if (codeInput) codeInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); fetchButton.click(); }
+  });
+  if (codeInput) codeInput.addEventListener('input', () => {
+    codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (codeInput.value) urlInput.value = '';
+  });
+  urlInput.addEventListener('input', () => {
+    if (urlInput.value.trim() && codeInput) codeInput.value = '';
   });
 })();
