@@ -3,11 +3,26 @@
   'use strict';
 
   const AIRLINES = {
-    BR: '長榮航空', CI: '中華航空', JX: '星宇航空', CX: '國泰航空',
-    JL: '日本航空', NH: '全日空', TG: '泰國航空', TR: '酷航',
-    MM: '樂桃航空', AK: '亞洲航空', FD: '泰國亞洲航空', VZ: '泰越捷航空',
-    SQ: '新加坡航空', KE: '大韓航空', OZ: '韓亞航空', MU: '中國東方航空',
-    CA: '中國國際航空', CZ: '中國南方航空', VN: '越南航空', QH: '越竹航空'
+    AE:'華信航空', BR:'長榮航空', B7:'立榮航空', CI:'中華航空', FE:'遠東航空（舊代碼）', GE:'復興航空（舊代碼）',
+    IT:'台灣虎航', JX:'星宇航空', KE:'大韓航空', LJ:'真航空', OZ:'韓亞航空', JL:'日本航空', NH:'全日空', TW:'德威航空',
+    CA:'中國國際航空', CX:'國泰航空', CZ:'中國南方航空', FM:'上海航空', HO:'吉祥航空', HU:'海南航空', HX:'香港航空',
+    KA:'港龍航空（舊代碼）', MF:'廈門航空', MU:'中國東方航空', NX:'澳門航空', OM:'蒙古航空', SC:'山東航空',
+    UO:'香港快運航空', ZH:'深圳航空', '3U':'四川航空', AI:'印度航空', AK:'亞洲航空', BG:'孟加拉航空', BI:'汶萊皇家航空',
+    D7:'亞洲航空X', FD:'泰國亞洲航空', FJ:'斐濟航空', GA:'印尼航空', JQ:'捷星航空', MH:'馬來西亞航空',
+    MI:'勝安航空（舊代碼）', NZ:'紐西蘭航空', PG:'曼谷航空', PR:'菲律賓航空', QF:'澳洲航空', QV:'寮國航空',
+    QZ:'印尼亞洲航空', RA:'尼泊爾航空', SQ:'新加坡航空', TG:'泰國航空', TN:'大溪地航空', TR:'酷航',
+    TZ:'酷航（舊代碼）', WE:'泰國微笑航空（舊代碼）', '3K':'捷星亞洲航空', '5J':'宿霧太平洋航空', '8M':'緬甸國際航空',
+    '9W':'印度捷特航空（舊代碼）', AA:'美國航空', AC:'加拿大航空', AM:'墨西哥國際航空', AR:'阿根廷航空',
+    AS:'阿拉斯加航空', AV:'哥倫比亞航空', B6:'捷藍航空', CM:'巴拿馬航空', DL:'達美航空', F9:'邊疆航空',
+    HA:'夏威夷航空', LA:'南美航空', LP:'秘魯航空（舊代碼）', MX:'墨西哥航空（舊代碼）', TA:'中美洲航空',
+    UA:'聯合航空', US:'全美航空（舊代碼）', VS:'維珍航空', WN:'西南航空', WS:'西捷航空', EK:'阿聯酋航空',
+    EY:'阿提哈德航空', ET:'衣索比亞航空', GF:'海灣航空', LY:'以色列航空', IR:'伊朗航空', KQ:'肯亞航空',
+    KU:'科威特航空', MK:'模里西斯航空', MS:'埃及航空', QR:'卡達航空', RJ:'皇家約旦航空', SA:'南非航空',
+    SV:'沙烏地阿拉伯航空', TK:'土耳其航空', UL:'斯里蘭卡航空', A3:'愛琴海航空', AF:'法國航空', AY:'芬蘭航空',
+    AZ:'義大利航空（舊代碼）', BA:'英國航空', EI:'愛爾蘭航空', FI:'冰島航空', IB:'西班牙航空', KC:'哈薩克航空',
+    KL:'荷蘭航空', LH:'德國漢莎航空', LO:'波蘭航空', LX:'瑞士航空', OS:'奧地利航空', SK:'北歐航空',
+    SN:'比利時航空', SU:'俄羅斯航空', TP:'葡萄牙航空', U2:'易捷航空', UX:'歐羅巴航空',
+    MM:'樂桃航空', VZ:'泰越捷航空', VN:'越南航空', QH:'越竹航空'
   };
 
   const CITY_NAMES = {
@@ -39,7 +54,7 @@
 
   function parseTourCode(codeOrText) {
     const text = clean(codeOrText).toUpperCase();
-    const match = text.match(/\b([A-Z]{3})(\d{2})([A-Z]{2})(\d{6})([A-Z0-9]{1,5})\b/);
+    const match = text.match(/\b([A-Z]{3})(\d{2})([A-Z0-9]{2})(\d{6})([A-Z0-9]{1,5})\b/);
     if (!match) return null;
     const [, cityCode, dayCode, airlineCode, yymmdd, suffix] = match;
     return {
@@ -59,7 +74,7 @@
     const combined = `${url || ''}\n${text || ''}`;
     const byParam = combined.match(/[?&]travel_no=([A-Z0-9]{10,30})/i);
     const byLabel = combined.match(/(?:團號|行程代碼)\s*[:：]?\s*([A-Z0-9]{10,30})/i);
-    const generic = combined.match(/\b[A-Z]{3}\d{2}[A-Z]{2}\d{6}[A-Z0-9]{1,5}\b/i);
+    const generic = combined.match(/\b[A-Z]{3}\d{2}[A-Z0-9]{2}\d{6}[A-Z0-9]{1,5}\b/i);
     return clean((byParam && byParam[1]) || (byLabel && byLabel[1]) || (generic && generic[0])).toUpperCase();
   }
 
@@ -164,3 +179,4 @@
 
   global.TravelAssistantParser = { AIRLINES, CITY_NAMES, clean, normalizeUrl, parseTourCode, parse };
 })(typeof window !== 'undefined' ? window : globalThis);
+
