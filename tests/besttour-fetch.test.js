@@ -20,7 +20,7 @@ test('converts HTML to readable text and removes scripts', () => {
 
 test('fetches a matching itinerary page', async () => {
   const mockFetch = async url => new Response(
-    '<html><h1>【東京水蜜桃５日】迪士尼、水蜜桃吃到飽</h1><p>團號 TYO05JX260726PJ</p><p>$35,900元</p></html>',
+    '<html><h1>【東京水蜜桃５日】迪士尼、水蜜桃吃到飽</h1><p>團號 TYO05JX260726PJ</p><p>$35,900元</p><section>' + '行程特色與每日行程內容 '.repeat(20) + '</section></html>',
     { status: 200, headers: { 'content-type': 'text/html' } }
   );
   const result = await fetchBesttourPage('https://www.besttour.com.tw/itinerary/TYO05JX260726PJ', mockFetch);
