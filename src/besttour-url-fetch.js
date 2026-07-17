@@ -26,7 +26,6 @@
     setValue('highlights', result.highlights.join('\n'));
     const missing = Object.entries(result.confidence).filter(([, ok]) => !ok).map(([key]) => key);
     if ($('generateCopy')) $('generateCopy').click();
-    if ($('makeDm')) $('makeDm').click();
     return missing;
   }
 
@@ -46,7 +45,7 @@
       const missing = applyResult(result, payload.data.text, payload.data.finalUrl);
       const providerName = payload.data.provider === 'ittms' ? 'ITTMS' : 'Besttour';
       const dates = payload.data.fields && payload.data.fields.dates ? payload.data.fields.dates.length : result.dates.length;
-      show(missing.length ? `${providerName} 已匯入 ${dates} 個出發日期；請人工確認：${missing.join('、')}` : `${providerName} 已完成解析，共匯入 ${dates} 個出發日期，文案與 DM 已更新。`, missing.length ? 'warn' : 'ok');
+      show(missing.length ? `${providerName} 已匯入 ${dates} 個出發日期；請人工確認：${missing.join('、')}` : `${providerName} 已完成解析，共匯入 ${dates} 個出發日期，社群文案已更新。`, missing.length ? 'warn' : 'ok');
     } catch (error) {
       const localFile = location.protocol === 'file:';
       show((localFile ? '請雙擊 START_SERVER.bat 後再使用自動抓取。' : error.message) + ' 仍可使用下方「貼上官網整頁文字」備援。', 'err');
