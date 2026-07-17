@@ -27,3 +27,18 @@ test('broad Japan destination includes Hokkaido and Tokyo', () => {
   assert.deepEqual(result.map(item => item.trip.code).sort(), ['SPK06FD261105AB','TYO05JX261111SM']);
 });
 
+test('keyword is a required filter when the user enters one', () => {
+  const result = matcher.rankTrips(trips, { people:2, destination:'日本', budget:50000, keywords:'人妖秀' });
+  assert.equal(result.length, 0);
+});
+
+test('human show aliases match common official attraction names', () => {
+  const thailand = [
+    { code:'BKK05BR261010AB', title:'曼谷五星五日', price:'35,000元起', dates:'10/10', highlights:['卡里普索 Calypso 秀'] },
+    { code:'BKK05BR261012CD', title:'曼谷經典五日', price:'34,000元起', dates:'10/12', highlights:['水上市場'] }
+  ];
+  const result = matcher.rankTrips(thailand, { people:2, destination:'泰國', budget:35000, month:10, keywords:'人妖秀' });
+  assert.deepEqual(result.map(item => item.trip.code), ['BKK05BR261010AB']);
+  assert.ok(matcher.expandKeyword('人妖秀').includes('alcazar'));
+});
+

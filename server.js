@@ -175,7 +175,7 @@ async function fetchBesttourSearch(query, fetchImpl = fetch) {
   }, fetchImpl);
   const rows = payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data : [];
   return {
-    keyword, total: Number(payload.pagecount) || rows.length,
+    keyword, total: Math.max(Number(payload.pagecount) || 0, rows.length),
     trips: rows.map(row => {
       const code = String(row.id || '').toUpperCase();
       const price = Number(row.member_price || row.price) || 0;
