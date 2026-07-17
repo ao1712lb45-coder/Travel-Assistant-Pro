@@ -52,6 +52,105 @@ function htmlToText(html) {
     .trim();
 }
 
+async function fetchJson(url, fetchImpl) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetchImpl(url, {
+      signal: controller.signal,
+      headers: {
+        accept: 'application/json',
+        'accept-language': 'zh-TW,zh;q=0.9',
+        'user-agent': 'Travel-Assistant-Pro/1.1 (+https://github.com/ao1712lb45-coder/Travel-Assistant-Pro)'
+      }
+    });
+    if (!response.ok) throw new FetchError('UPSTREAM_HTTP_ERROR', `Besttour 行程資料服務回傳 HTTP ${response.status}。`, 502);
+    const raw = await response.text();
+    if (Buffer.byteLength(raw) > MAX_BYTES) throw new FetchError('PAGE_TOO_LARGE', '官網資料過大，已停止讀取。', 502);
+    try { return JSON.parse(raw); }
+    catch { throw new FetchError('INVALID_API_RESPONSE', 'Besttour 行程資料格式目前無法辨識。', 502); }
+  } catch (error) {
+    if (error instanceof FetchError) throw error;
+    if (error && error.name === 'AbortError') throw new FetchError('TIMEOUT', 'Besttour 行程資料回應逾時，請稍後重試。', 504);
+    throw new FetchError('UPSTREAM_UNAVAILABLE', '目前無法連線 Besttour 行程資料服務。', 502);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function apiUrl(endpoint, params) {
+  const url = new URL(`https://travelapi.besttour.com.tw/api/${endpoint}`);
+  Object.entries(params || {}).forEach(([key, value]) => url.searchParams.set(key, value));
+  return url;
+}
+
+function firstApiRecord(payload) {
+  return payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data[0] : null;
+}
+
+async function fetchBesttourApiItinerary(code, fetchImpl) {
+  const infoPayload = await fetchJson(apiUrl('travel_detail_info.asp', { travel_no: code }), fetchImpl);
+  const info = firstApiRecord(infoPayload);
+  if (!info || info.status === '1') {
+    throw new FetchError('ITINERARY_NOT_FOUND', 'Besttour 查無這個團號，可能已下架或停止銷售。', 404);
+  }
+
+  const [flightPayload, featurePayload, calendarPayload] = await Promise.all([
+    fetchJson(apiUrl('travel_flight.asp', { travel_no: code }), fetchImpl).catch(() => ({ status: '1', data: [] })),
+    fetchJson(apiUrl('travel_detail_feature.asp', { travel_no: code }), fetchImpl).catch(() => ({ status: '1', data: [] })),
+    info.id_key
+      ? fetchJson(apiUrl('travel_detail_calendar.asp', { code: info.id_key }), fetchImpl).catch(() => ({ status: '1', data: [] }))
+      : Promise.resolve({ status: '1', data: [] })
+  ]);
+
+  const calendarRows = calendarPayload && calendarPayload.status === '0' && Array.isArray(calendarPayload.data)
+    ? calendarPayload.data.flatMap(yearGroup => (yearGroup.data || []).flatMap(monthGroup =>
+      (monthGroup.data || []).map(day => ({
+        ...day,
+        dateFull: `${yearGroup.year}/${String(monthGroup.month).padStart(2, '0')}/${String(day.date).padStart(2, '0')}`
+      }))
+    ))
+    : [];
+  const dates = [...new Set((calendarRows.length ? calendarRows.map(item => item.dateFull) : [info.date]).filter(Boolean))].sort();
+  const prices = (calendarRows.length ? calendarRows.map(item => item.price) : [info.mini_price])
+    .map(value => Number(String(value || '').replace(/,/g, ''))).filter(value => value > 0);
+  const minimumPrice = prices.length ? Math.min(...prices) : null;
+  const flights = flightPayload && flightPayload.status === '0' && Array.isArray(flightPayload.data) ? flightPayload.data : [];
+  const features = featurePayload && featurePayload.status === '0' && Array.isArray(featurePayload.data) ? featurePayload.data : [];
+  const lines = [
+    info.title_1 || info.title_2 || '',
+    `團號 ${code}`,
+    info.day ? `天數 ${info.day}日` : '',
+    minimumPrice ? `最低售價 ${minimumPrice.toLocaleString('en-US')}元起` : '',
+    dates.length ? `出發日期 ${dates.join('、')}` : '',
+    flights.length ? '參考航班' : '',
+    ...flights.map(item => `${item.name || ''} ${item.flight || ''} ${item.date || ''} ${item.place_1 || ''} ${item.place_2 || ''}`),
+    features.length ? '行程特色' : '',
+    ...features.map(item => `${item.name || ''}\n${htmlToText(item.content || '')}`)
+  ].filter(Boolean);
+
+  return {
+    text: lines.join('\n'),
+    source: 'besttour-api',
+    fields: {
+      title: info.title_1 || info.title_2 || '',
+      price: minimumPrice,
+      dates,
+      airline: flights.find(item => item.name)?.name || '',
+      flights,
+      departures: calendarRows.map(item => ({
+        date: item.dateFull,
+        code: item.no,
+        price: Number(String(item.price || '').replace(/,/g, '')) || null,
+        seats: Number(item.amount) || 0,
+        airline: item.flight_name || '',
+        flight: item.flight || '',
+        departureCity: item.city || ''
+      }))
+    }
+  };
+}
+
 async function fetchBesttourPage(rawUrl, fetchImpl = fetch) {
   const requested = validateBesttourUrl(rawUrl);
   const controller = new AbortController();
@@ -87,11 +186,20 @@ async function fetchBesttourPage(rawUrl, fetchImpl = fetch) {
   const requestedCode = requested.pathname.split('/').filter(Boolean).pop().toUpperCase();
   const hasRequestedCode = text.toUpperCase().includes(requestedCode) || html.toUpperCase().includes(requestedCode);
   if (!hasRequestedCode) {
-    throw new FetchError('ITINERARY_NOT_FOUND', '官網未回傳這個團號的行程內容，可能已下架或被導回首頁。', 404);
+    const apiResult = await fetchBesttourApiItinerary(requestedCode, fetchImpl);
+    return {
+      requestedUrl: requested.href,
+      finalUrl: finalUrl.href,
+      requestedCode,
+      text: apiResult.text,
+      source: apiResult.source,
+      fields: apiResult.fields,
+      fetchedAt: new Date().toISOString()
+    };
   }
   if (text.length < 200) throw new FetchError('CONTENT_INCOMPLETE', '官網內容尚未完整載入，請改用「貼上官網整頁文字」。', 422);
 
-  return { requestedUrl: requested.href, finalUrl: finalUrl.href, requestedCode, text, fetchedAt: new Date().toISOString() };
+  return { requestedUrl: requested.href, finalUrl: finalUrl.href, requestedCode, text, source: 'html', fetchedAt: new Date().toISOString() };
 }
 
 function sendJson(res, status, body) {
@@ -139,4 +247,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { FetchError, validateBesttourUrl, htmlToText, fetchBesttourPage, createServer };
+module.exports = { FetchError, validateBesttourUrl, htmlToText, fetchBesttourApiItinerary, fetchBesttourPage, createServer };
