@@ -6,7 +6,7 @@
   if (!panel || panel.dataset.workspaceReady === 'true') return;
 
   const sections = Array.from(panel.querySelectorAll(':scope > .section'));
-  if (sections.length < 7) return;
+  if (sections.length < 8) return;
 
   const views = [
     { id: 'start', label: '開始製作', icon: '1', sections: sections.slice(0, 2), help: '貼上網址，自動抓取；失敗時可改貼官網文字。' },
@@ -14,7 +14,8 @@
     { id: 'dm', label: '設計 DM', icon: '3', sections: [sections[3]], help: '調整圖片與版型，預覽完成後下載 PNG。' },
     { id: 'copy', label: '社群文案', icon: '4', sections: [sections[4]], help: '產生 LINE、Facebook 與 Threads 文案。' },
     { id: 'check', label: '發布檢查', icon: '5', sections: [sections[5]], help: '發布前再次確認所有必要資料。' },
-    { id: 'database', label: '行程資料庫', icon: '6', sections: [sections[6]], help: '搜尋、載入及備份曾經製作的行程。' }
+    { id: 'match', label: '客戶配對', icon: '6', sections: [sections[6]], help: '依人數、地區、預算與月份，從資料庫推薦適合的團。' },
+    { id: 'database', label: '行程資料庫', icon: '7', sections: [sections[7]], help: '搜尋、載入及備份曾經製作的行程。' }
   ];
 
   const style = document.createElement('style');
@@ -38,7 +39,7 @@
     .mobile-nav{display:none}
     @keyframes workspaceIn{from{opacity:.35;transform:translateY(4px)}to{opacity:1;transform:none}}
     @media(max-width:820px){
-      body{padding-bottom:72px}header{position:relative}.workspace{display:block;margin:10px auto;padding:0 8px}.workspace-nav{display:none}.workspace-toolbar{position:sticky;top:6px;z-index:20;padding:10px 12px}.workspace-progress{font-size:11px}.workspace-main>.panel{border-radius:13px}.mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(6,1fr);left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.97);border-top:1px solid #d9e2ee;padding:6px 4px max(6px,env(safe-area-inset-bottom));box-shadow:0 -5px 18px rgba(23,32,51,.12)}
+      body{padding-bottom:72px}header{position:relative}.workspace{display:block;margin:10px auto;padding:0 8px}.workspace-nav{display:none}.workspace-toolbar{position:sticky;top:6px;z-index:20;padding:10px 12px}.workspace-progress{font-size:11px}.workspace-main>.panel{border-radius:13px}.mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(7,1fr);left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.97);border-top:1px solid #d9e2ee;padding:6px 4px max(6px,env(safe-area-inset-bottom));box-shadow:0 -5px 18px rgba(23,32,51,.12)}
       .mobile-nav button{padding:5px 1px;background:transparent;border-radius:8px;color:#667085;font-size:10px;display:grid;justify-items:center;gap:2px}.mobile-nav button.active{background:#fff1f2;color:#9f1239}.mobile-nav .nav-step{width:25px;height:25px;border-radius:8px}.workspace-actions{padding:10px 2px}.workspace-actions button{min-width:0;flex:1}.section{padding:13px}
     }
   `;
@@ -114,3 +115,4 @@
   const hashIndex = views.findIndex(view => '#' + view.id === location.hash);
   showView(hashIndex >= 0 ? hashIndex : 0, false);
 })();
+
