@@ -126,6 +126,9 @@
   }
 
   function extractAirline(text, parsedCode) {
+    // 喜鴻團號中的航空代碼是產品識別的一部分，優先於頁面內可能混入的
+    // 共用參考航班文字，避免 FD 團被 CI 航班內容錯誤覆蓋。
+    if (parsedCode && AIRLINES[parsedCode.airlineCode]) return AIRLINES[parsedCode.airlineCode];
     const source = String(text || '');
     const flightZone = (source.match(/(?:參考航班|航班資訊|去程航班|回程航班)[\s\S]{0,1600}/i) || [''])[0];
     const target = flightZone || source;
@@ -133,7 +136,7 @@
       const namePattern = name.replace('航空', '(?:航空)?');
       if (new RegExp(`${namePattern}|\\b${code}\\s*\\d{2,4}\\b`, 'i').test(target)) return name;
     }
-    return parsedCode ? parsedCode.airline : '';
+    return '';
   }
 
   function extractHighlights(text, subtitle) {
