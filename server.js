@@ -88,6 +88,27 @@ async function fetchJson(url, fetchImpl) {
   } finally { clearTimeout(timer); }
 }
 
+async function fetchFormJson(url, params, fetchImpl) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetchImpl(url, {
+      method: 'POST', signal: controller.signal,
+      headers: { accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'accept-language': 'zh-TW,zh;q=0.9', 'user-agent': 'Travel-Assistant-Pro/1.1' },
+      body: new URLSearchParams(params)
+    });
+    if (!response.ok) throw new FetchError('UPSTREAM_HTTP_ERROR', `Besttour 搜尋服務回傳 HTTP ${response.status}。`, 502);
+    const raw = await response.text();
+    if (Buffer.byteLength(raw) > MAX_BYTES * 4) throw new FetchError('PAGE_TOO_LARGE', '官網搜尋結果過大，請縮小日期或地區範圍。', 502);
+    try { return JSON.parse(raw); } catch { throw new FetchError('INVALID_API_RESPONSE', 'Besttour 搜尋資料格式無法辨識。', 502); }
+  } catch (error) {
+    if (error instanceof FetchError) throw error;
+    if (error && error.name === 'AbortError') throw new FetchError('TIMEOUT', 'Besttour 搜尋逾時，請縮小範圍再試。', 504);
+    throw new FetchError('UPSTREAM_UNAVAILABLE', '目前無法連接 Besttour 搜尋服務。', 502);
+  } finally { clearTimeout(timer); }
+}
+
 function apiUrl(endpoint, params) {
   const url = new URL(`https://travelapi.besttour.com.tw/api/${endpoint}`);
   Object.entries(params || {}).forEach(([key, value]) => url.searchParams.set(key, value));
@@ -137,6 +158,37 @@ async function fetchOfficialItinerary(code, fetchImpl, options = {}) {
 }
 
 const fetchBesttourApiItinerary = (code, fetchImpl) => fetchOfficialItinerary(code, fetchImpl, { provider: 'besttour' });
+
+function validSearchDate(value) {
+  const text = String(value || '').trim();
+  return /^20\d{2}\/\d{2}\/\d{2}$/.test(text) ? text : '//';
+}
+
+async function fetchBesttourSearch(query, fetchImpl = fetch) {
+  const keyword = String(query.keyword || '').trim().slice(0, 40);
+  if (!keyword) throw new FetchError('KEYWORD_REQUIRED', '請輸入地區或關鍵字，例如：東南亞、北海道、沙美島。');
+  const limit = Math.max(1, Math.min(300, Number(query.limit) || 100));
+  const payload = await fetchFormJson(apiUrl('query_List_all.asp'), {
+    date_from: validSearchDate(query.dateFrom), date_to: validSearchDate(query.dateTo), country: '', day: '',
+    price_min: '', price_max: '', city: '', other: '', talent: '', searchTxt: keyword, slogan: '', slogan_1: '',
+    slogan_2: '', travel_data: '', pageid: '1', pagesize: String(limit), m_class: '', m_mid: ''
+  }, fetchImpl);
+  const rows = payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data : [];
+  return {
+    keyword, total: Number(payload.pagecount) || rows.length,
+    trips: rows.map(row => {
+      const code = String(row.id || '').toUpperCase();
+      const price = Number(row.member_price || row.price) || 0;
+      return {
+        code, title: htmlToText(row.name || ''), mainTitle: htmlToText(row.name || ''), subtitle: '',
+        price: price ? `${price.toLocaleString('en-US')}元起` : '官網目前未顯示', dates: row.date || '',
+        airline: '', destination: row.city || '', highlights: [], days: row.day ? `${row.day}日` : '',
+        seats: Number(row.amount_2) || 0, departureCity: row.from_city || '',
+        url: `https://www.besttour.com.tw/itinerary/${code}`, source: 'besttour-search', updated: new Date().toISOString()
+      };
+    })
+  };
+}
 
 async function fetchItineraryPage(rawUrl, fetchImpl = fetch) {
   const requested = validateItineraryUrl(rawUrl);
@@ -202,6 +254,12 @@ function createServer(options = {}) {
       if (req.method === 'GET' && ['/api/itinerary/fetch', '/api/besttour/fetch'].includes(requestUrl.pathname)) {
         return sendJson(res, 200, { ok: true, data: await fetchItineraryPage(requestUrl.searchParams.get('url'), fetchImpl) });
       }
+      if (req.method === 'GET' && requestUrl.pathname === '/api/besttour/search') {
+        return sendJson(res, 200, { ok: true, data: await fetchBesttourSearch({
+          keyword: requestUrl.searchParams.get('keyword'), dateFrom: requestUrl.searchParams.get('dateFrom'),
+          dateTo: requestUrl.searchParams.get('dateTo'), limit: requestUrl.searchParams.get('limit')
+        }, fetchImpl) });
+      }
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });
     } catch (error) {
@@ -214,5 +272,5 @@ function createServer(options = {}) {
 if (require.main === module) createServer().listen(PORT, '127.0.0.1', () => console.log(`Travel Assistant Pro: http://127.0.0.1:${PORT}`));
 
 module.exports = { FetchError, ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchOfficialItinerary,
-  fetchBesttourApiItinerary, fetchItineraryPage, fetchBesttourPage, createServer };
+  fetchBesttourApiItinerary, fetchBesttourSearch, fetchItineraryPage, fetchBesttourPage, createServer };
 

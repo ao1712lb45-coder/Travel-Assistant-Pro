@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchItineraryPage, createServer } = require('../server');
+const { ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchItineraryPage, fetchBesttourSearch, createServer } = require('../server');
 
 test('accepts a Besttour itinerary URL', () => {
   const result = validateItineraryUrl('https://www.besttour.com.tw/itinerary/TYO05JX260726PJ');
@@ -91,4 +91,28 @@ test('serves both the new and legacy fetch endpoints', async () => {
     const html = await (await fetch(base + '/')).text();
     assert.match(html, /\/src\/besttour-url-fetch\.js/);
   } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
+test('imports matching trips from the official Besttour search API', async () => {
+  const mockFetch = async (url, options) => {
+    assert.match(String(url), /query_List_all\.asp/);
+    assert.equal(options.method, 'POST');
+    const form = new URLSearchParams(options.body);
+    assert.equal(form.get('searchTxt'), '沙美島');
+    assert.equal(form.get('date_from'), '2026/09/01');
+    assert.equal(form.get('pagesize'), '50');
+    return jsonResponse({ status:'0', pagecount:'4', data:[{
+      id:'BKK05JX261111SM', name:'【漫享沙美島５日】海島住宿、沙灘火舞', member_price:'29888',
+      date:'2026/11/11', day:'5', amount_2:'20', from_city:'桃園', city:'曼谷'
+    }] });
+  };
+  const result = await fetchBesttourSearch({ keyword:'沙美島', dateFrom:'2026/09/01', dateTo:'2027/08/31', limit:50 }, mockFetch);
+  assert.equal(result.total, 4);
+  assert.equal(result.trips[0].code, 'BKK05JX261111SM');
+  assert.equal(result.trips[0].price, '29,888元起');
+  assert.equal(result.trips[0].seats, 20);
+});
+
+test('requires a keyword before syncing the Besttour database', async () => {
+  await assert.rejects(() => fetchBesttourSearch({ keyword:'' }), /請輸入地區或關鍵字/);
 });

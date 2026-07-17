@@ -41,6 +41,7 @@
       const price = numberFrom(trip.price);
       if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month)) return null;
       if (budget && (!price || price > budget)) return null;
+      if (Number(trip.seats) > 0 && Number(trip.seats) < people) return null;
       const haystack = tripText(trip);
       const matchedKeywords = keywords.filter(word => haystack.includes(word.toLowerCase()));
       let score = 50;
@@ -59,6 +60,52 @@
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
   if (!button) return;
+
+  function localDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  const syncButton = $('syncBesttour');
+  if (syncButton) {
+    const today = new Date();
+    const nextYear = new Date(today); nextYear.setFullYear(today.getFullYear() + 1);
+    if (!$('syncDateFrom').value) $('syncDateFrom').value = localDate(today);
+    if (!$('syncDateTo').value) $('syncDateTo').value = localDate(nextYear);
+    syncButton.addEventListener('click', async () => {
+      const keyword = $('syncKeyword').value.trim();
+      const status = $('syncStatus');
+      if (!keyword) { status.className = 'status show warn'; status.textContent = '請輸入地區或關鍵字，例如：東南亞、北海道、沙美島。'; return; }
+      syncButton.disabled = true; syncButton.textContent = '正在讀取 Besttour…';
+      status.className = 'status show warn'; status.textContent = '正在同步官網行程，請稍候…';
+      try {
+        const params = new URLSearchParams({ keyword, dateFrom:$('syncDateFrom').value.replaceAll('-','/'),
+          dateTo:$('syncDateTo').value.replaceAll('-','/'), limit:$('syncLimit').value });
+        const response = await fetch('/api/besttour/search?' + params, { headers:{ accept:'application/json' } });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error && payload.error.message || '官網同步失敗。');
+        let database = [];
+        try { database = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
+        const byCode = new Map(database.map(trip => [trip.code, trip]));
+        let added = 0; let updated = 0;
+        payload.data.trips.forEach(trip => {
+          const parsed = global.TravelAssistantParser && global.TravelAssistantParser.parseTourCode(trip.code);
+          trip.airline = parsed ? parsed.airline.replace('（舊代碼）','') : trip.airline;
+          const old = byCode.get(trip.code);
+          if (old) { byCode.set(trip.code, { ...trip, ...old, price:trip.price, dates:trip.dates, seats:trip.seats, destination:trip.destination, updated:trip.updated }); updated++; }
+          else { byCode.set(trip.code, trip); added++; }
+        });
+        localStorage.setItem('travelV10Db', JSON.stringify([...byCode.values()]));
+        if (typeof global.renderDb === 'function') global.renderDb();
+        status.className = 'status show ok';
+        status.textContent = `同步完成：新增 ${added} 團、更新 ${updated} 團。官網符合「${keyword}」共 ${payload.data.total} 團，本次最多匯入 ${$('syncLimit').value} 團。`;
+      } catch (error) {
+        status.className = 'status show err'; status.textContent = error.message + ' 你仍可使用單一網址逐團匯入。';
+      } finally { syncButton.disabled = false; syncButton.textContent = '從 Besttour 官網同步'; }
+    });
+  }
   button.addEventListener('click', () => {
     let trips = [];
     try { trips = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
