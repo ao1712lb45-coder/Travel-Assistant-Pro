@@ -186,7 +186,7 @@ function serveFile(res, pathname) {
   if (!target.startsWith(ROOT + path.sep) || !fs.existsSync(target) || fs.statSync(target).isDirectory()) return false;
   let data = fs.readFileSync(target);
   if (relative === 'index.html') {
-    const injection = '<script src="/src/tour-parser.js"></script><script src="/src/besttour-url-fetch.js"></script><script src="/src/app-shell.js"></script>';
+    const injection = '<script src="/src/tour-parser.js"></script><script src="/src/besttour-url-fetch.js"></script><script src="/src/recommendation.js"></script><script src="/src/app-shell.js"></script>';
     data = Buffer.from(data.toString('utf8').replace('</body>', injection + '</body>'));
   }
   const types = { '.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg' };
@@ -215,3 +215,4 @@ if (require.main === module) createServer().listen(PORT, '127.0.0.1', () => cons
 
 module.exports = { FetchError, ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchOfficialItinerary,
   fetchBesttourApiItinerary, fetchItineraryPage, fetchBesttourPage, createServer };
+
