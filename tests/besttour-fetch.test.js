@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchItineraryPage, fetchBesttourSearch, createServer } = require('../server');
+const { ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchItineraryPage, fetchBesttourSearch, fetchItinerarySchedule, searchItineraryContents, createServer } = require('../server');
 
 test('accepts a Besttour itinerary URL', () => {
   const result = validateItineraryUrl('https://www.besttour.com.tw/itinerary/TYO05JX260726PJ');
@@ -126,4 +126,23 @@ test('exposes a health endpoint so the browser can detect the local service', as
     assert.equal(response.status, 200);
     assert.equal(payload.data.service, 'Travel Assistant Pro');
   } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
+test('searches hidden attractions inside the complete daily itinerary', async () => {
+  const mockFetch = async url => {
+    assert.match(String(url), /travel_detail_schedule\.asp\?travel_no=FUK05BR261104U/);
+    return jsonResponse({ status:'0', data:[
+      { day:'1', date:'2026/11/04', abstract_1:'桃園－福岡', abstract_2:[], view:[] },
+      { day:'2', date:'2026/11/05', abstract_1:'湯布院－高千穗峽－真名井瀑布',
+        abstract_2:[{ name:'真名井瀑布【日本瀑布百選之一】' }],
+        view:[{ name:'真名井瀑布', images:'https://example.com/waterfall.jpg', memo_2:'約17公尺高的瀑布美景' }] }
+    ] });
+  };
+  const schedule = await fetchItinerarySchedule('FUK05BR261104U', mockFetch);
+  assert.equal(schedule[1].day, 2);
+  assert.match(schedule[1].content, /真名井瀑布/);
+  const result = await searchItineraryContents(['FUK05BR261104U'], ['真名井瀑布'], mockFetch);
+  assert.equal(result.checked, 1);
+  assert.equal(result.results[0].matches[0].day, 2);
+  assert.match(result.results[0].matches[0].excerpt, /真名井瀑布/);
 });

@@ -49,15 +49,21 @@
     return new RegExp(`(?:^|[^0-9])0?${Number(month)}[\\/]`).test(String(trip.dates || ''));
   }
 
+  function basicMatches(trip, needs) {
+    const price = numberFrom(trip.price), budget = Math.max(0, Number(needs.budget) || 0), people = Math.max(1, Number(needs.people) || 1);
+    if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month)) return false;
+    if (budget && (!price || price > budget)) return false;
+    if (Number(trip.seats) > 0 && Number(trip.seats) < people) return false;
+    return true;
+  }
+
   function rankTrips(trips, needs) {
     const people = Math.max(1, Number(needs.people) || 1);
     const budget = Math.max(0, Number(needs.budget) || 0);
     const keywords = parseKeywords(needs.keywords);
     return (trips || []).map(trip => {
       const price = numberFrom(trip.price);
-      if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month)) return null;
-      if (budget && (!price || price > budget)) return null;
-      if (Number(trip.seats) > 0 && Number(trip.seats) < people) return null;
+      if (!basicMatches(trip, needs)) return null;
       const haystack = tripText(trip);
       const matchedKeywords = keywords.filter(word => expandKeyword(word).some(alias => haystack.includes(alias)));
       if (keywords.length && !matchedKeywords.length) return null;
@@ -72,7 +78,7 @@
     }).filter(Boolean).sort((a, b) => b.score - a.score || a.price - b.price).slice(0, 8);
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, parseKeywords, expandKeyword, numberFrom, destinationMatches, monthMatches, rankTrips };
+  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, parseKeywords, expandKeyword, numberFrom, destinationMatches, monthMatches, basicMatches, rankTrips };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -85,12 +91,12 @@
     return `${year}-${month}-${day}`;
   }
 
-  async function fetchJsonWithRetry(url, attempts = 2) {
+  async function fetchJsonWithRetry(url, attempts = 2, timeoutMs = 35000) {
     if (location.protocol === 'file:') throw new Error('目前是直接開啟 index.html，官網同步功能無法運作。請關閉此頁，改用 START_SERVER.bat 啟動程式。');
     let lastError;
     for (let attempt = 1; attempt <= attempts; attempt++) {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 35000);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
         const response = await fetch(url, { headers:{ accept:'application/json' }, signal:controller.signal });
         const type = response.headers.get('content-type') || '';
@@ -180,18 +186,48 @@
         if (typeof global.renderDb === 'function') global.renderDb();
       } catch (error) { officialError = error.message; }
     }
+    let contentChecked = 0;
+    if (keywordWords.length) {
+      const needs = { people:$('matchPeople').value, destination:$('matchDestination').value,
+        budget:$('matchBudget').value, month:$('matchMonth').value };
+      const candidates = trips.filter(trip => trip.code && basicMatches(trip, needs)).slice(0, 50);
+      if (candidates.length) {
+        status.textContent = `正在深入檢查 ${candidates.length} 團的每日行程、景點說明與體驗內容…`;
+        try {
+          const aliases = [...new Set(keywordWords.flatMap(expandKeyword))];
+          const params = new URLSearchParams({ codes:candidates.map(trip => trip.code).join(','), keywords:aliases.join(',') });
+          const payload = await fetchJsonWithRetry('/api/besttour/content-search?' + params, 1, 70000);
+          contentChecked = payload.data.checked;
+          const byCode = new Map(trips.map(trip => [trip.code, trip]));
+          payload.data.results.forEach(result => {
+            const old = byCode.get(result.code); if (!old) return;
+            const matchedTerms = [...new Set(result.matches.flatMap(match => match.matchedTerms))];
+            const originals = keywordWords.filter(word => expandKeyword(word).some(alias => matchedTerms.includes(alias)));
+            const attractions = [...new Set(result.matches.flatMap(match => match.attractions || []))];
+            byCode.set(result.code, { ...old,
+              officialMatchedKeywords:[...new Set([...(old.officialMatchedKeywords||[]),...originals])],
+              contentMatches:result.matches,
+              highlights:[...new Set([...(old.highlights||[]),...attractions])]
+            });
+          });
+          trips = [...byCode.values()]; localStorage.setItem('travelV10Db', JSON.stringify(trips));
+        } catch (error) { officialError = officialError || error.message; }
+      }
+    }
     const results = rankTrips(trips, { people:$('matchPeople').value, destination:$('matchDestination').value,
       budget:$('matchBudget').value, month:$('matchMonth').value, keywords:$('matchKeywords').value });
     const box = $('matchResults'); box.innerHTML = '';
     status.className = 'status show ' + (results.length ? 'ok' : 'warn');
-    status.textContent = results.length ? `找到 ${results.length} 個符合關鍵字的行程，已依符合程度排序。${officialCount ? ` 官網補充搜尋 ${officialCount} 筆結果。` : ''}` : (officialError ? `官網搜尋未完成：${officialError}；本機資料庫也沒有符合全部條件的行程。` : '沒有符合地區、月份、預算與關鍵字的行程，請嘗試放寬其中一項。');
+    status.textContent = results.length ? `找到 ${results.length} 個符合關鍵字的行程。${contentChecked ? ` 已檢查 ${contentChecked} 團的完整每日行程。` : ''}${officialCount ? ` 官網另補充 ${officialCount} 筆搜尋結果。` : ''}` : (officialError ? `官網搜尋未完成：${officialError}；本機資料庫也沒有符合全部條件的行程。` : `沒有符合條件的行程。${contentChecked ? `已檢查 ${contentChecked} 團完整內容。` : '請先從行程資料庫同步目的地行程，再搜尋內容。'}`);
     results.forEach((item, index) => {
       const card = document.createElement('div'); card.className = 'hint';
       card.style.borderLeft = index < 3 ? '5px solid #d92d45' : '1px solid #e6ebf2';
+      const contentProof = (item.trip.contentMatches || []).slice(0, 2).map(match => `<div style="margin-top:7px;padding:7px 9px;background:#fff7ed;border-radius:7px;color:#7a3e00"><b>第 ${match.day || '?'} 天${match.date ? `（${match.date}）` : ''}</b>｜${match.excerpt}</div>`).join('');
       card.innerHTML = `<strong>${index + 1}. ${item.trip.code ? item.trip.code + '｜' : ''}${item.trip.title || item.trip.mainTitle || '未命名行程'}</strong>
         <div style="margin-top:6px">${item.trip.airline || '航空待確認'}｜${item.trip.dates || '日期待確認'}</div>
         <div style="margin-top:4px">每人：${item.price ? item.price.toLocaleString('zh-TW') + ' 元起' : '價格待確認'}${item.total ? `｜${item.people} 人預估 ${item.total.toLocaleString('zh-TW')} 元起` : ''}</div>
         <div style="margin-top:6px;color:#087a55">推薦原因：${item.reasons.join('；')}</div>
+        ${contentProof}
         <div style="margin-top:5px;color:#a85b00">⚠️ 實際售價與 ${item.people} 人機位需回官網確認</div>
         ${item.trip.url ? `<div style="margin-top:7px"><a href="${item.trip.url}" target="_blank" rel="noopener">開啟官網行程</a></div>` : ''}`;
       box.appendChild(card);

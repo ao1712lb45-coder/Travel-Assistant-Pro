@@ -42,3 +42,11 @@ test('human show aliases match common official attraction names', () => {
   assert.ok(matcher.expandKeyword('人妖秀').includes('alcazar'));
 });
 
+test('full itinerary matches can make hidden attractions searchable', () => {
+  const hidden = [{ code:'FUK05BR261104U', title:'超值九州５日', price:'39,900元起', dates:'11/4',
+    officialMatchedKeywords:['真名井瀑布'], contentMatches:[{ day:2, excerpt:'高千穗峽－真名井瀑布' }] }];
+  const result = matcher.rankTrips(hidden, { people:2, destination:'九州', budget:50000, month:11, keywords:'真名井瀑布' });
+  assert.equal(result[0].trip.code, 'FUK05BR261104U');
+  assert.equal(result[0].trip.contentMatches[0].day, 2);
+});
+

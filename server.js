@@ -159,6 +159,54 @@ async function fetchOfficialItinerary(code, fetchImpl, options = {}) {
 
 const fetchBesttourApiItinerary = (code, fetchImpl) => fetchOfficialItinerary(code, fetchImpl, { provider: 'besttour' });
 
+async function fetchItinerarySchedule(code, fetchImpl = fetch) {
+  const normalized = String(code || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{8,24}$/.test(normalized)) throw new FetchError('INVALID_TOUR_CODE', '團號格式無法辨識。');
+  const payload = await fetchJson(apiUrl('travel_detail_schedule.asp', { travel_no:normalized }), fetchImpl);
+  const rows = payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data : [];
+  return rows.map(row => {
+    const views = Array.isArray(row.view) ? row.view : [];
+    const abstract = Array.isArray(row.abstract_2) ? row.abstract_2 : [];
+    const hotels = row.hotel && Array.isArray(row.hotel.data) ? row.hotel.data : [];
+    const attractions = [...new Set([...abstract.map(item => htmlToText(item.name || '')), ...views.map(item => htmlToText(item.name || ''))].filter(Boolean))];
+    const content = [row.abstract_1, ...attractions, row.memo_1, row.memo_2, row.memo_3,
+      ...views.flatMap(item => [item.name, item.memo_1, item.memo_2, item.memo_3]),
+      row.breakfast, row.lunch, row.dinner, ...hotels.map(item => item.name)].map(htmlToText).filter(Boolean).join('\n');
+    return { day:Number(row.day) || null, date:String(row.date || ''), title:htmlToText(row.abstract_1 || ''), content, attractions,
+      images:views.map(item => item.images).filter(url => /^https:\/\//i.test(String(url || ''))) };
+  });
+}
+
+function matchSchedule(schedule, keywords) {
+  const terms = [...new Set((keywords || []).map(value => String(value).trim().toLowerCase()).filter(Boolean))].slice(0, 30);
+  const matches = [];
+  schedule.forEach(day => {
+    const lower = day.content.toLowerCase();
+    const matchedTerms = terms.filter(term => lower.includes(term));
+    if (!matchedTerms.length) return;
+    const first = Math.min(...matchedTerms.map(term => lower.indexOf(term)).filter(index => index >= 0));
+    const start = Math.max(0, first - 45), end = Math.min(day.content.length, first + 115);
+    matches.push({ day:day.day, date:day.date, title:day.title, matchedTerms, excerpt:day.content.slice(start, end).replace(/\s+/g, ' '),
+      attractions:day.attractions.filter(name => matchedTerms.some(term => name.toLowerCase().includes(term))), images:day.images.slice(0, 4) });
+  });
+  return matches;
+}
+
+async function searchItineraryContents(codes, keywords, fetchImpl = fetch) {
+  const list = [...new Set((codes || []).map(value => String(value).trim().toUpperCase()).filter(value => /^[A-Z0-9]{8,24}$/.test(value)))].slice(0, 50);
+  const terms = [...new Set((keywords || []).map(value => String(value).trim()).filter(Boolean))].slice(0, 30);
+  const results = new Array(list.length); let cursor = 0;
+  async function worker() {
+    while (cursor < list.length) {
+      const index = cursor++, code = list[index];
+      try { const schedule = await fetchItinerarySchedule(code, fetchImpl); results[index] = { code, matches:matchSchedule(schedule, terms) }; }
+      catch (_) { results[index] = { code, matches:[] }; }
+    }
+  }
+  await Promise.all(Array.from({ length:Math.min(6, list.length) }, worker));
+  return { checked:list.length, results:results.filter(item => item && item.matches.length) };
+}
+
 function validSearchDate(value) {
   const text = String(value || '').trim();
   return /^20\d{2}\/\d{2}\/\d{2}$/.test(text) ? text : '//';
@@ -260,6 +308,11 @@ function createServer(options = {}) {
           dateTo: requestUrl.searchParams.get('dateTo'), limit: requestUrl.searchParams.get('limit')
         }, fetchImpl) });
       }
+      if (req.method === 'GET' && requestUrl.pathname === '/api/besttour/content-search') {
+        return sendJson(res, 200, { ok:true, data:await searchItineraryContents(
+          String(requestUrl.searchParams.get('codes') || '').split(','), String(requestUrl.searchParams.get('keywords') || '').split(','), fetchImpl
+        ) });
+      }
       if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
         return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'1.1.0' } });
       }
@@ -275,5 +328,5 @@ function createServer(options = {}) {
 if (require.main === module) createServer().listen(PORT, '127.0.0.1', () => console.log(`Travel Assistant Pro: http://127.0.0.1:${PORT}`));
 
 module.exports = { FetchError, ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchOfficialItinerary,
-  fetchBesttourApiItinerary, fetchBesttourSearch, fetchItineraryPage, fetchBesttourPage, createServer };
+  fetchBesttourApiItinerary, fetchItinerarySchedule, matchSchedule, searchItineraryContents, fetchBesttourSearch, fetchItineraryPage, fetchBesttourPage, createServer };
 
