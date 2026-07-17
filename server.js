@@ -3,6 +3,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
@@ -294,6 +295,40 @@ function sendJson(res, status, body) {
   res.end(data);
 }
 
+function safeEqual(left, right) {
+  const a = Buffer.from(String(left || ''));
+  const b = Buffer.from(String(right || ''));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function isAuthorized(req, user, password) {
+  if (!password) return true;
+  const header = String(req.headers.authorization || '');
+  if (!header.startsWith('Basic ')) return false;
+  try {
+    const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+    const splitAt = decoded.indexOf(':');
+    if (splitAt < 0) return false;
+    return safeEqual(decoded.slice(0, splitAt), user) && safeEqual(decoded.slice(splitAt + 1), password);
+  } catch { return false; }
+}
+
+function applySecurityHeaders(res) {
+  res.setHeader('x-content-type-options', 'nosniff');
+  res.setHeader('x-frame-options', 'DENY');
+  res.setHeader('referrer-policy', 'same-origin');
+  res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+}
+
+function requestLogin(res) {
+  res.writeHead(401, {
+    'www-authenticate': 'Basic realm="Travel Assistant Pro", charset="UTF-8"',
+    'content-type': 'text/plain; charset=utf-8',
+    'cache-control': 'no-store'
+  });
+  res.end('請輸入 Travel Assistant Pro 團隊帳號與密碼。');
+}
+
 function serveFile(res, pathname) {
   const relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.slice(1));
   const target = path.resolve(ROOT, relative);
@@ -310,9 +345,16 @@ function serveFile(res, pathname) {
 
 function createServer(options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
+  const appUser = options.appUser !== undefined ? options.appUser : (process.env.APP_USER || 'team');
+  const appPassword = options.appPassword !== undefined ? options.appPassword : (process.env.APP_PASSWORD || '');
   return http.createServer(async (req, res) => {
     try {
+      applySecurityHeaders(res);
       const requestUrl = new URL(req.url, 'http://localhost');
+      if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
+        return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'1.1.0', protected:Boolean(appPassword) } });
+      }
+      if (!isAuthorized(req, appUser, appPassword)) return requestLogin(res);
       if (req.method === 'GET' && ['/api/itinerary/fetch', '/api/besttour/fetch'].includes(requestUrl.pathname)) {
         return sendJson(res, 200, { ok: true, data: await fetchItineraryPage(requestUrl.searchParams.get('url'), fetchImpl) });
       }
@@ -328,9 +370,6 @@ function createServer(options = {}) {
           String(requestUrl.searchParams.get('codes') || '').split(','), String(requestUrl.searchParams.get('keywords') || '').split(','), fetchImpl
         ) });
       }
-      if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
-        return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'1.1.0' } });
-      }
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });
     } catch (error) {
@@ -340,8 +379,12 @@ function createServer(options = {}) {
   });
 }
 
-if (require.main === module) createServer().listen(PORT, '127.0.0.1', () => console.log(`Travel Assistant Pro: http://127.0.0.1:${PORT}`));
+if (require.main === module) {
+  const host = process.env.HOST || '0.0.0.0';
+  createServer().listen(PORT, host, () => console.log(`Travel Assistant Pro: http://localhost:${PORT}`));
+}
 
 module.exports = { FetchError, ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchOfficialItinerary,
-  fetchBesttourApiItinerary, fetchItinerarySchedule, matchSchedule, searchItineraryContents, fetchBesttourSearch, fetchItineraryPage, fetchBesttourPage, createServer };
+  fetchBesttourApiItinerary, fetchItinerarySchedule, matchSchedule, searchItineraryContents, fetchBesttourSearch, fetchItineraryPage, fetchBesttourPage,
+  safeEqual, isAuthorized, createServer };
 
