@@ -32,7 +32,10 @@ test('online deployment protects the app but leaves health checks available', as
 
     const authorized = await fetch(`${base}/`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(authorized.status, 200);
-    assert.match(await authorized.text(), /旅遊助手V1\.0/);
+    const page = await authorized.text();
+    assert.match(page, /旅遊助手V1\.0/);
+    assert.match(page, /id="regenLine">換一篇 LINE/);
+    assert.match(page, /id="regenFacebook">換一篇 Facebook/);
     const assistant = await fetch(`${base}/src/local-assistant.js`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(assistant.status, 200);
     assert.match(await assistant.text(), /免費內建助手/);

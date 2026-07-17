@@ -89,18 +89,22 @@
     variantSelect.innerHTML = '<option value="auto">每次自動變化</option>' + Array.from({ length: 8 }, (_, i) => `<option value="${i + 1}">版型 ${i + 1}</option>`).join('');
     let counter = 0;
     const readData = () => ({ url:byId('url').value.trim(), code:byId('code').value.trim(), days:byId('days').value.trim(), title:byId('mainTitle').value.trim(), subtitle:byId('subtitle').value.trim(), price:byId('price').value.trim(), airline:byId('airline').value.trim(), dates:byId('dates').value.trim(), highlights:byId('highlights').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean), contact:byId('contact').value.trim(), line:byId('line').value.trim() });
-    const render = advance => {
+    const render = (advance, target = 'all') => {
       if (advance) {
         counter += 1;
         if (variantSelect.value !== 'auto') variantSelect.value = String((Number(variantSelect.value) % 8) + 1);
       }
       const requested = variantSelect.value === 'auto' ? (counter % 8) + 1 : Number(variantSelect.value), result = generateSet(readData(), styleSelect.value, requested);
-      byId('lineOut').value=result.line; byId('fbOut').value=result.facebook; byId('threadsOut').value=result.threads;
+      if (target === 'all' || target === 'line') byId('lineOut').value=result.line;
+      if (target === 'all' || target === 'facebook') byId('fbOut').value=result.facebook;
+      if (target === 'all' || target === 'threads') byId('threadsOut').value=result.threads;
       const status=byId('copyStatus'); status.textContent=`已產生：${STYLE_LABELS[result.style]}・版型 ${result.variant}`; status.className='status show ok';
       if (typeof globalThis.runCheck === 'function') globalThis.runCheck();
     };
     byId('generateCopy').textContent='產生三平台文案'; byId('generateCopy').onclick=()=>render(false);
-    byId('regenThreads').textContent='換一組三平台文案'; byId('regenThreads').onclick=()=>render(true);
+    byId('regenLine').onclick=()=>render(true, 'line');
+    byId('regenFacebook').onclick=()=>render(true, 'facebook');
+    byId('regenThreads').textContent='換一篇 Threads'; byId('regenThreads').onclick=()=>render(true, 'threads');
     styleSelect.onchange=()=>render(false); variantSelect.onchange=()=>render(false);
     ['url','code','days','mainTitle','subtitle','price','airline','dates','highlights','contact','line'].forEach(id=>byId(id).addEventListener('input',()=>render(false)));
     render(false);
