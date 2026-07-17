@@ -116,3 +116,14 @@ test('imports matching trips from the official Besttour search API', async () =>
 test('requires a keyword before syncing the Besttour database', async () => {
   await assert.rejects(() => fetchBesttourSearch({ keyword:'' }), /請輸入地區或關鍵字/);
 });
+
+test('exposes a health endpoint so the browser can detect the local service', async () => {
+  const server = createServer({ fetchImpl:async () => { throw new Error('not used'); } });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/health`);
+    const payload = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(payload.data.service, 'Travel Assistant Pro');
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});

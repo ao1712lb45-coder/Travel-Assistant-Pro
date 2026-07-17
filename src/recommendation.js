@@ -85,6 +85,31 @@
     return `${year}-${month}-${day}`;
   }
 
+  async function fetchJsonWithRetry(url, attempts = 2) {
+    if (location.protocol === 'file:') throw new Error('目前是直接開啟 index.html，官網同步功能無法運作。請關閉此頁，改用 START_SERVER.bat 啟動程式。');
+    let lastError;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 35000);
+      try {
+        const response = await fetch(url, { headers:{ accept:'application/json' }, signal:controller.signal });
+        const type = response.headers.get('content-type') || '';
+        if (!type.includes('application/json')) throw new Error('本機服務版本過舊，請關閉程式後重新執行 START_SERVER.bat。');
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error && payload.error.message || '官網同步失敗。');
+        return payload;
+      } catch (error) {
+        lastError = error;
+        if (attempt < attempts) await new Promise(resolve => setTimeout(resolve, 700));
+      } finally { clearTimeout(timer); }
+    }
+    if (lastError && lastError.name === 'AbortError') throw new Error('Besttour 官網回應逾時，程式已自動重試仍未成功。請縮小日期範圍或改成每次匯入 50 團。');
+    if (lastError instanceof TypeError || /Failed to fetch/i.test(String(lastError && lastError.message))) {
+      throw new Error('本機服務沒有回應。請確認網址是 http://127.0.0.1:4173，並重新執行 START_SERVER.bat。');
+    }
+    throw lastError;
+  }
+
   const syncButton = $('syncBesttour');
   if (syncButton) {
     const today = new Date();
@@ -100,9 +125,7 @@
       try {
         const params = new URLSearchParams({ keyword, dateFrom:$('syncDateFrom').value.replaceAll('-','/'),
           dateTo:$('syncDateTo').value.replaceAll('-','/'), limit:$('syncLimit').value });
-        const response = await fetch('/api/besttour/search?' + params, { headers:{ accept:'application/json' } });
-        const payload = await response.json();
-        if (!response.ok || !payload.ok) throw new Error(payload.error && payload.error.message || '官網同步失敗。');
+        const payload = await fetchJsonWithRetry('/api/besttour/search?' + params);
         let database = [];
         try { database = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
         const byCode = new Map(database.map(trip => [trip.code, trip]));
@@ -127,9 +150,7 @@
     const results = [];
     for (const word of words.slice(0, 3)) {
       const params = new URLSearchParams({ keyword:word, limit:'100' });
-      const response = await fetch('/api/besttour/search?' + params, { headers:{ accept:'application/json' } });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error && payload.error.message || 'Besttour 官網關鍵字搜尋失敗。');
+      const payload = await fetchJsonWithRetry('/api/besttour/search?' + params);
       payload.data.trips.forEach(trip => results.push({ ...trip, officialMatchedKeywords:[word] }));
     }
     return results;

@@ -260,6 +260,9 @@ function createServer(options = {}) {
           dateTo: requestUrl.searchParams.get('dateTo'), limit: requestUrl.searchParams.get('limit')
         }, fetchImpl) });
       }
+      if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
+        return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'1.1.0' } });
+      }
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });
     } catch (error) {
