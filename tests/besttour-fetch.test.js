@@ -38,3 +38,20 @@ test('rejects a homepage fallback that lacks the requested code', async () => {
     error => error.code === 'ITINERARY_NOT_FOUND'
   );
 });
+
+test('serves the friendly workspace shell with the existing app', async () => {
+  const { createServer } = require('../server');
+  const server = createServer();
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    const response = await fetch(`http://127.0.0.1:${address.port}/`);
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.match(html, /\/src\/tour-parser\.js/);
+    assert.match(html, /\/src\/besttour-url-fetch\.js/);
+    assert.match(html, /\/src\/app-shell\.js/);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
