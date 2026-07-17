@@ -20,6 +20,7 @@
     quality: ['想把旅行安排得更有質感，可以看看這團。', '精選景點與行程資訊，一次整理給你。', '重視旅遊內容的人，這團值得仔細看看。', '不只到此一遊，行程亮點更值得期待。']
   };
   const FORMAT_NOTES = ['先看基本資料與主要亮點。', '日期、價格與航空資訊都整理好了。', '挑出幾個值得注意的行程內容。', '出發前最想知道的資訊一次看。', '先收藏，再和旅伴一起研究。', '正在比行程的人可以快速比較。', '把重點濃縮成一篇，閱讀更方便。', '從景點到出發資訊，快速掌握。'];
+  const DECORATORS = ['━━ 旅遊精選 ━━', '✦ 行程亮點 ✦', '｜旅行提案｜', '〔本次推薦〕', '— 出發靈感 —', '✈ TRAVEL NOTE', '▸ 行程速報', '◆ 精選假期 ◆', '◌ 旅行清單 ◌', '【行程筆記】', '✧ 今日推薦 ✧', '旅 行 提 案', '⋯ READY TO GO ⋯'];
   const clean = value => String(value || '').trim();
   const valid = value => value && !/官網目前未顯示|未辨識|待確認/.test(value);
   const list = d => (d.highlights || []).filter(Boolean).slice(0, 5);
@@ -35,7 +36,8 @@
     if (/五星|豪華|質感|米其林|精品/.test(text)) return 'quality';
     return 'natural';
   }
-  function normalizeVariant(value) { const n = Number(value); return Number.isFinite(n) && n >= 1 ? ((n - 1) % 8) + 1 : 1; }
+  function normalizeVariant(value) { const n = Number(value); return Number.isFinite(n) && n >= 1 ? ((n - 1) % 50) + 1 : 1; }
+  function decorator(variant) { return DECORATORS[(variant - 1) % DECORATORS.length]; }
   function opener(style, variant) { const choices = OPENERS[style] || OPENERS.natural; return choices[(variant - 1) % choices.length]; }
   function lineText(d, style, variant) {
     const title = `【${clean(d.title)}${d.days && !clean(d.title).includes(d.days) ? ` ${d.days}` : ''}】`;
@@ -48,7 +50,7 @@
       `${opener(style, variant)}\n\n${b}\n\n${title}\n${info(d)}`,
       `${title}\n\n${info(d)}\n\n行程亮點：\n${b}`
     ];
-    return `${layouts[(variant - 1) % layouts.length]}\n\n${FORMAT_NOTES[variant - 1]}${url}\n\n${endings[(variant - 1) % endings.length]}\n${contact(d)}`.trim();
+    return `${decorator(variant)}\n${layouts[(variant - 1) % layouts.length]}\n\n${FORMAT_NOTES[(variant - 1) % FORMAT_NOTES.length]}${url}\n\n${endings[(variant - 1) % endings.length]}\n${contact(d)}`.trim();
   }
   function facebookText(d, style, variant) {
     const b = bullets(d, variant % 2 ? '✨' : '📍');
@@ -60,7 +62,7 @@
       `【${d.title}】\n\n${opener(style, variant)}\n\n${info(d)}\n\n值得期待的亮點：\n${b}`,
       `${opener(style, variant)}\n\n${b}\n\n行程：${d.title}\n${info(d)}`
     ][(variant - 1) % 4];
-    return `${body}\n\n${FORMAT_NOTES[variant - 1]}${url}\n\n${calls[(variant - 1) % calls.length]}\n\n${contact(d)}`.trim();
+    return `${decorator(variant)}\n${body}\n\n${FORMAT_NOTES[(variant - 1) % FORMAT_NOTES.length]}${url}\n\n${calls[(variant - 1) % calls.length]}\n\n${contact(d)}`.trim();
   }
   function threadsText(d, style, variant) {
     const h = list(d).slice(0, 3).join('、') || d.subtitle || '行程亮點';
@@ -74,7 +76,7 @@
       `旅伴丟來這團，你會先看哪個？\n\n${h}\n\n${d.title}\n${valid(d.price) ? d.price : ''}`,
       `把這團放進候選清單了。\n\n${d.title}\n${h}\n${valid(d.airline) ? `${d.airline}，` : ''}${valid(d.dates) ? d.dates : ''}\n${valid(d.price) ? d.price : ''}`
     ];
-    return versions[variant - 1].replace(/\n{3,}/g, '\n\n').trim();
+    return `${decorator(variant)}\n${versions[(variant - 1) % versions.length]}`.replace(/\n{3,}/g, '\n\n').trim();
   }
   function generateSet(data, requestedStyle = 'auto', variant = 1) {
     const normalized = { ...data, title: clean(data.title) || '行程名稱待確認' };
@@ -86,15 +88,15 @@
     if (!styleSelect || !variantSelect || !byId('generateCopy')) return;
     styleSelect.innerHTML = Object.entries(STYLE_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
     variantSelect.previousElementSibling.textContent = '文案版型';
-    variantSelect.innerHTML = '<option value="auto">每次自動變化</option>' + Array.from({ length: 8 }, (_, i) => `<option value="${i + 1}">版型 ${i + 1}</option>`).join('');
+    variantSelect.innerHTML = '<option value="auto">每次自動變化</option>' + Array.from({ length: 50 }, (_, i) => `<option value="${i + 1}">版型 ${i + 1}</option>`).join('');
     let counter = 0;
     const readData = () => ({ url:byId('url').value.trim(), code:byId('code').value.trim(), days:byId('days').value.trim(), title:byId('mainTitle').value.trim(), subtitle:byId('subtitle').value.trim(), price:byId('price').value.trim(), airline:byId('airline').value.trim(), dates:byId('dates').value.trim(), highlights:byId('highlights').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean), contact:byId('contact').value.trim(), line:byId('line').value.trim() });
     const render = (advance, target = 'all') => {
       if (advance) {
         counter += 1;
-        if (variantSelect.value !== 'auto') variantSelect.value = String((Number(variantSelect.value) % 8) + 1);
+        if (variantSelect.value !== 'auto') variantSelect.value = String((Number(variantSelect.value) % 50) + 1);
       }
-      const requested = variantSelect.value === 'auto' ? (counter % 8) + 1 : Number(variantSelect.value), result = generateSet(readData(), styleSelect.value, requested);
+      const requested = variantSelect.value === 'auto' ? (counter % 50) + 1 : Number(variantSelect.value), result = generateSet(readData(), styleSelect.value, requested);
       if (target === 'all' || target === 'line') byId('lineOut').value=result.line;
       if (target === 'all' || target === 'facebook') byId('fbOut').value=result.facebook;
       if (target === 'all' || target === 'threads') byId('threadsOut').value=result.threads;
