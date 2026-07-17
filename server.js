@@ -224,15 +224,20 @@ function validSearchDate(value) {
 async function fetchBesttourSearch(query, fetchImpl = fetch) {
   const keyword = String(query.keyword || '').trim().slice(0, 40);
   if (!keyword) throw new FetchError('KEYWORD_REQUIRED', '請輸入地區或關鍵字，例如：東南亞、北海道、沙美島。');
-  const limit = Math.max(1, Math.min(300, Number(query.limit) || 100));
+  const page = Math.max(1, Math.min(100, Number(query.page) || 1));
+  const pageSize = Math.max(1, Math.min(50, Number(query.pageSize || query.limit) || 50));
   const payload = await fetchFormJson(apiUrl('query_List_all.asp'), {
     date_from: validSearchDate(query.dateFrom), date_to: validSearchDate(query.dateTo), country: '', day: '',
     price_min: '', price_max: '', city: '', other: '', talent: '', searchTxt: keyword, slogan: '', slogan_1: '',
-    slogan_2: '', travel_data: '', pageid: '1', pagesize: String(limit), m_class: '', m_mid: ''
+    slogan_2: '', travel_data: '', pageid: String(page), pagesize: String(pageSize), m_class: '', m_mid: ''
   }, fetchImpl);
-  const rows = payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data : [];
+  const rawRows = payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data : [];
+  const keywordLower = keyword.toLowerCase();
+  const rows = rawRows.filter(row => htmlToText([row.name, row.city, row.country, row.slogan, row.slogan_1, row.slogan_2].filter(Boolean).join(' ')).toLowerCase().includes(keywordLower));
   return {
-    keyword, total: Math.max(Number(payload.pagecount) || 0, rows.length),
+    keyword, page, pageSize, total: Math.max(Number(payload.pagecount) || 0, rows.length),
+    totalPages: Math.max(1, Number(payload.pagecount) || 1),
+    hasMore: rawRows.length === pageSize,
     trips: rows.map(row => {
       const code = String(row.id || '').toUpperCase();
       const price = Number(row.member_price || row.price) || 0;
@@ -314,7 +319,8 @@ function createServer(options = {}) {
       if (req.method === 'GET' && requestUrl.pathname === '/api/besttour/search') {
         return sendJson(res, 200, { ok: true, data: await fetchBesttourSearch({
           keyword: requestUrl.searchParams.get('keyword'), dateFrom: requestUrl.searchParams.get('dateFrom'),
-          dateTo: requestUrl.searchParams.get('dateTo'), limit: requestUrl.searchParams.get('limit')
+          dateTo: requestUrl.searchParams.get('dateTo'), limit: requestUrl.searchParams.get('limit'),
+          page: requestUrl.searchParams.get('page'), pageSize: requestUrl.searchParams.get('pageSize')
         }, fetchImpl) });
       }
       if (req.method === 'GET' && requestUrl.pathname === '/api/besttour/content-search') {

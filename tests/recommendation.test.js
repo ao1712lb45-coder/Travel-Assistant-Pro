@@ -50,3 +50,24 @@ test('full itinerary matches can make hidden attractions searchable', () => {
   assert.equal(result[0].trip.contentMatches[0].day, 2);
 });
 
+test('official database sync refreshes volatile fields but keeps saved highlights', () => {
+  const oldTrip = { code:'FUK05BR261104U', title:'舊名稱', price:'39,900元起', dates:'11/4', seats:3, highlights:['真名井瀁布'] };
+  const fresh = { code:'FUK05BR261104U', title:'最新九州五日', price:'37,900元起', dates:'11/4、11/11', seats:12, source:'besttour-search' };
+  const result = matcher.mergeOfficialTrip(oldTrip, fresh);
+  assert.equal(result.price, '37,900元起');
+  assert.equal(result.seats, 12);
+  assert.deepEqual(result.highlights, ['真名井瀁布']);
+});
+
+test('latest itinerary fields update price dates airline and selected departure seats', () => {
+  const result = matcher.applyLatestFields({ code:'GES10BR261118PAK', price:'99,900元起', seats:1 }, {
+    source:'besttour-api', fields:{ title:'瑞士雙峰１０日', price:109900, dates:['2026/11/18','2026/11/25'], airline:'長榮航空',
+      departures:[{ code:'GES10BR261118PAK', date:'2026/11/18', seats:18 }] }
+  });
+  assert.equal(result.price, '109,900元起');
+  assert.equal(result.dates, '2026/11/18、2026/11/25');
+  assert.equal(result.airline, '長榮航空');
+  assert.equal(result.seats, 18);
+  assert.ok(result.lastChecked);
+});
+

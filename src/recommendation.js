@@ -78,7 +78,31 @@
     }).filter(Boolean).sort((a, b) => b.score - a.score || a.price - b.price).slice(0, 8);
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, parseKeywords, expandKeyword, numberFrom, destinationMatches, monthMatches, basicMatches, rankTrips };
+  function mergeOfficialTrip(oldTrip, officialTrip) {
+    const old = oldTrip || {}, fresh = officialTrip || {};
+    return { ...fresh, ...old,
+      code:fresh.code || old.code, title:fresh.title || old.title, mainTitle:fresh.mainTitle || fresh.title || old.mainTitle,
+      price:fresh.price || old.price, dates:fresh.dates || old.dates, seats:Number.isFinite(Number(fresh.seats)) ? Number(fresh.seats) : old.seats,
+      airline:fresh.airline || old.airline, destination:fresh.destination || old.destination, url:fresh.url || old.url,
+      source:fresh.source || old.source, updated:fresh.updated || new Date().toISOString()
+    };
+  }
+
+  function applyLatestFields(trip, payload) {
+    const fields = payload && payload.fields || {};
+    const departures = Array.isArray(fields.departures) ? fields.departures : [];
+    const selected = departures.find(item => String(item.code || '').toUpperCase() === String(trip.code || '').toUpperCase());
+    const price = Number(fields.price) > 0 ? `${Number(fields.price).toLocaleString('en-US')}元起` : trip.price;
+    return { ...trip,
+      title:fields.title || trip.title, mainTitle:fields.title || trip.mainTitle || trip.title,
+      price, dates:Array.isArray(fields.dates) && fields.dates.length ? fields.dates.join('、') : trip.dates,
+      airline:fields.airline || trip.airline, seats:selected ? Number(selected.seats) || 0 : trip.seats,
+      departures:departures.length ? departures : trip.departures,
+      lastChecked:new Date().toISOString(), updated:new Date().toISOString(), source:payload.source || trip.source
+    };
+  }
+
+  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, parseKeywords, expandKeyword, numberFrom, destinationMatches, monthMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -126,32 +150,67 @@
       const keyword = $('syncKeyword').value.trim();
       const status = $('syncStatus');
       if (!keyword) { status.className = 'status show warn'; status.textContent = '請輸入地區或關鍵字，例如：東南亞、北海道、沙美島。'; return; }
-      syncButton.disabled = true; syncButton.textContent = '正在讀取 Besttour…';
-      status.className = 'status show warn'; status.textContent = '正在同步官網行程，請稍候…';
+      const limit = Number($('syncLimit').value) || 100;
+      const fingerprint = JSON.stringify({ keyword, from:$('syncDateFrom').value, to:$('syncDateTo').value, limit });
+      let checkpoint = null;
+      try { checkpoint = JSON.parse(localStorage.getItem('travelSyncCheckpoint') || 'null'); } catch (_) {}
+      if (!checkpoint || checkpoint.fingerprint !== fingerprint) checkpoint = { fingerprint, nextPage:1, processed:0, added:0, updated:0 };
+      syncButton.disabled = true; syncButton.textContent = checkpoint.processed ? '繼續同步中…' : '正在讀取 Besttour…';
+      $('syncProgressBox').style.display = 'block';
+      status.className = 'status show warn'; status.textContent = checkpoint.processed ? `從上次的 ${checkpoint.processed} 團後繼續…` : '正在分批同步官網行程，每批會立即儲存…';
       try {
-        const params = new URLSearchParams({ keyword, dateFrom:$('syncDateFrom').value.replaceAll('-','/'),
-          dateTo:$('syncDateTo').value.replaceAll('-','/'), limit:$('syncLimit').value });
-        const payload = await fetchJsonWithRetry('/api/besttour/search?' + params);
         let database = [];
         try { database = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
         const byCode = new Map(database.map(trip => [trip.code, trip]));
-        let added = 0; let updated = 0;
-        payload.data.trips.forEach(trip => {
-          const parsed = global.TravelAssistantParser && global.TravelAssistantParser.parseTourCode(trip.code);
-          trip.airline = parsed ? parsed.airline.replace('（舊代碼）','') : trip.airline;
-          const old = byCode.get(trip.code);
-          if (old) { byCode.set(trip.code, { ...trip, ...old, price:trip.price, dates:trip.dates, seats:trip.seats, destination:trip.destination, updated:trip.updated }); updated++; }
-          else { byCode.set(trip.code, trip); added++; }
-        });
-        localStorage.setItem('travelV10Db', JSON.stringify([...byCode.values()]));
+        let completed = false, officialPages = 0;
+        while (checkpoint.processed < limit && !completed) {
+          const pageSize = 50;
+          const params = new URLSearchParams({ keyword, dateFrom:$('syncDateFrom').value.replaceAll('-','/'),
+            dateTo:$('syncDateTo').value.replaceAll('-','/'), page:String(checkpoint.nextPage), pageSize:String(pageSize) });
+          const payload = await fetchJsonWithRetry('/api/besttour/search?' + params, 3, 45000);
+          const rows = (payload.data.trips || []).slice(0, Math.max(0, limit - checkpoint.processed)); officialPages = payload.data.totalPages || officialPages;
+          rows.forEach(trip => {
+            const parsed = global.TravelAssistantParser && global.TravelAssistantParser.parseTourCode(trip.code);
+            if (parsed && parsed.airline) trip.airline = parsed.airline.replace('（舊代碼）','');
+            const old = byCode.get(trip.code);
+            if (old) { byCode.set(trip.code, mergeOfficialTrip(old, trip)); checkpoint.updated++; }
+            else { byCode.set(trip.code, trip); checkpoint.added++; }
+          });
+          checkpoint.processed += rows.length; checkpoint.nextPage++;
+          localStorage.setItem('travelV10Db', JSON.stringify([...byCode.values()]));
+          localStorage.setItem('travelSyncCheckpoint', JSON.stringify(checkpoint));
+          const percent = Math.min(99, Math.round(checkpoint.processed / Math.max(1, limit) * 100));
+          $('syncProgress').value = percent; $('syncProgressPercent').textContent = percent + '%';
+          $('syncProgressText').textContent = `已儲存 ${checkpoint.processed} 團，正在讀取第 ${checkpoint.nextPage} 批…`;
+          status.textContent = `同步中：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團。`;
+          const maxPages = officialPages || 100;
+          completed = !payload.data.hasMore || checkpoint.processed >= limit || checkpoint.nextPage > Math.min(100, maxPages);
+        }
+        localStorage.removeItem('travelSyncCheckpoint');
+        $('syncProgress').value = 100; $('syncProgressPercent').textContent = '100%'; $('syncProgressText').textContent = '同步完成';
         if (typeof global.renderDb === 'function') global.renderDb();
         status.className = 'status show ok';
-        status.textContent = `同步完成：新增 ${added} 團、更新 ${updated} 團。官網符合「${keyword}」共 ${payload.data.total} 團，本次最多匯入 ${$('syncLimit').value} 團。`;
+        status.textContent = `同步完成：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團，共處理 ${checkpoint.processed} 團。`;
       } catch (error) {
-        status.className = 'status show err'; status.textContent = error.message + ' 你仍可使用單一網址逐團匯入。';
+        localStorage.setItem('travelSyncCheckpoint', JSON.stringify(checkpoint));
+        status.className = 'status show err'; status.textContent = error.message + ` 已保留進度（${checkpoint.processed} 團），稍後再按一次「從 Besttour 官網同步」即可繼續。`;
       } finally { syncButton.disabled = false; syncButton.textContent = '從 Besttour 官網同步'; }
     });
   }
+
+  const refreshButton = $('refreshDb');
+  if (refreshButton) refreshButton.addEventListener('click', async () => {
+    const status = $('refreshStatus'); const query = String($('dbSearch').value || '').trim().toLowerCase();
+    let database = []; try { database = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
+    const candidates = database.filter(trip => trip.code && (!query || `${trip.code} ${trip.title || trip.mainTitle || ''}`.toLowerCase().includes(query))).slice(0, 50);
+    if (!candidates.length) { status.className='status show warn'; status.textContent='目前搜尋結果沒有可更新的團。'; return; }
+    refreshButton.disabled=true; refreshButton.textContent='正在確認官網…';status.className='status show warn';status.textContent=`正在重新確認 ${candidates.length} 團的價格、機位與出發日…`;
+    const byCode = new Map(database.map(trip => [trip.code, trip])); let cursor=0, success=0, failed=0;
+    async function worker(){while(cursor<candidates.length){const trip=candidates[cursor++];try{const payload=await fetchJsonWithRetry('/api/itinerary/fetch?url='+encodeURIComponent(trip.code),2,45000);byCode.set(trip.code,applyLatestFields(trip,payload.data));success++;}catch(_){failed++;}status.textContent=`已確認 ${success+failed} / ${candidates.length} 團…`;}}
+    await Promise.all(Array.from({length:Math.min(4,candidates.length)},worker));
+    localStorage.setItem('travelV10Db',JSON.stringify([...byCode.values()]));if(typeof global.renderDb==='function')global.renderDb();
+    status.className='status show '+(success?'ok':'err');status.textContent=`官網確認完成：成功 ${success} 團${failed?`、暫時失敗 ${failed} 團`:''}。已更新最低價、可見出發日、航空公司與當團機位。`;refreshButton.disabled=false;refreshButton.textContent='更新目前搜尋結果';
+  });
   async function searchOfficialKeywords(words) {
     const results = [];
     for (const word of words.slice(0, 3)) {
