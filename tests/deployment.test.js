@@ -45,6 +45,9 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(recommendationScript, /stopSync/);
     assert.match(recommendationScript, /travelerType/);
     assert.match(recommendationScript, /avoidSlopes/);
+    const workbench = await fetch(`${base}/src/sales-workbench.js`, { headers:{ authorization:basic('team','secret') } });
+    assert.equal(workbench.status, 200);
+    assert.match(await workbench.text(), /parseCustomerMessage/);
     assert.equal(authorized.headers.get('x-frame-options'), 'DENY');
   } finally { await new Promise(resolve => server.close(resolve)); }
 });

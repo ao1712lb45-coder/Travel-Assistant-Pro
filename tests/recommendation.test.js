@@ -50,6 +50,16 @@ test('family and youth profiles reward matching experiences', () => {
   assert.equal(matcher.rankTrips(options, { travelerType:'youth' })[0].trip.code, 'TYO05JX261102BB');
 });
 
+test('date range airport airline and shopping constraints are applied without guessing unknown fields', () => {
+  const options=[
+    {code:'TYO05IT261101AA',title:'東京五日',dates:'2026/11/01',days:'5日',departureCity:'桃園',airline:'台灣虎航',highlights:['免稅店']},
+    {code:'TYO05JX261105BB',title:'東京五日',dates:'2026/11/05',days:'5日',departureCity:'桃園',airline:'星宇航空',highlights:['迪士尼']},
+    {code:'TYO06JX261105CC',title:'東京六日',dates:'2026/11/05',days:'6日',departureCity:'高雄',airline:'星宇航空'}
+  ];
+  const result=matcher.rankTrips(options,{destination:'日本',days:5,departureAirport:'桃園',dateFrom:'2026-11-03',dateTo:'2026-11-10',avoidLowCost:true,avoidShopping:true});
+  assert.deepEqual(result.map(item=>item.trip.code),['TYO05JX261105BB']);
+});
+
 test('keyword is a required filter when the user enters one', () => {
   const result = matcher.rankTrips(trips, { people:2, destination:'日本', budget:50000, keywords:'人妖秀' });
   assert.equal(result.length, 0);

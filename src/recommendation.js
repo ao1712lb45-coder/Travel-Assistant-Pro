@@ -27,6 +27,8 @@
   };
   const SLOPE_TERMS = /登山|健行|爬山|爬坡|陡坡|山路|上坡|下坡/;
   const STAIR_TERMS = /階梯|樓梯|石階|千階|登階/;
+  const LOW_COST_TERMS = /廉航|台灣虎航|亞洲航空|酷航|樂桃|越捷|捷星|宿霧太平洋/;
+  const SHOPPING_TERMS = /購物站|購物店|免稅店|土產店|珠寶店|乳膠店/;
 
   function parseKeywords(value) { return String(value || '').split(/[、,，\s]+/).map(word => word.trim()).filter(Boolean).slice(0, 5); }
   function sixMonthRange(base = new Date()) {
@@ -70,11 +72,23 @@
     return new RegExp(`(?:^|[^0-9])0?${Number(month)}[\\/]`).test(String(trip.dates || ''));
   }
 
+  function dateRangeMatches(trip, from, to) {
+    if (!from && !to) return true;
+    const values=[...String(trip.dates||'').matchAll(/20\d{2}[\/.-]\d{1,2}[\/.-]\d{1,2}/g)].map(match=>new Date(match[0].replace(/[.]/g,'-'))).filter(date=>!Number.isNaN(date.getTime()));
+    if (!values.length) return true;
+    const start=from?new Date(from):null,end=to?new Date(to):null;
+    return values.some(date=>(!start||date>=start)&&(!end||date<=end));
+  }
+
   function basicMatches(trip, needs) {
     const price = numberFrom(trip.price), budget = Math.max(0, Number(needs.budget) || 0), people = Math.max(1, Number(needs.people) || 1);
-    if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month)) return false;
+    if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month) || !dateRangeMatches(trip,needs.dateFrom,needs.dateTo)) return false;
     if (budget && (!price || price > budget)) return false;
     if (Number(trip.seats) > 0 && Number(trip.seats) < people) return false;
+    const wantedDays = Number(needs.days) || 0, tripDays = Number((String(trip.days || '').match(/\d{1,2}/) || [])[0]) || 0;
+    if (wantedDays && tripDays && wantedDays !== tripDays) return false;
+    const airport = String(needs.departureAirport || '').trim(), knownAirport = String(trip.departureCity || '').trim();
+    if (airport && knownAirport && !knownAirport.includes(airport)) return false;
     return true;
   }
 
@@ -86,6 +100,8 @@
       const price = numberFrom(trip.price);
       if (!basicMatches(trip, needs)) return null;
       const haystack = tripText(trip);
+      if (needs.avoidLowCost && LOW_COST_TERMS.test(haystack)) return null;
+      if (needs.avoidShopping && SHOPPING_TERMS.test(haystack)) return null;
       if (needs.avoidSlopes && SLOPE_TERMS.test(haystack)) return null;
       if (needs.avoidStairs && STAIR_TERMS.test(haystack)) return null;
       const matchedKeywords = keywords.filter(word => expandKeyword(word).some(alias => haystack.includes(alias)));
@@ -107,6 +123,8 @@
       }
       if (needs.avoidSlopes) reasons.push('未在已取得文字中發現明顯爬坡描述，仍需人工確認');
       if (needs.avoidStairs) reasons.push('未在已取得文字中發現明顯樓梯描述，仍需人工確認');
+      if (needs.avoidLowCost) reasons.push('目前資料未顯示廉航，仍需人工確認實際航班');
+      if (needs.avoidShopping) reasons.push('目前資料未顯示購物站，仍需人工確認完整行程');
       if (!reasons.length) reasons.push('符合目前設定的基本條件');
       return { trip, price, people, total: price ? price * people : 0, score, reasons };
     }).filter(Boolean).sort((a, b) => b.score - a.score || a.price - b.price).slice(0, 8);
@@ -136,7 +154,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, dateRangeMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -289,7 +307,9 @@
     const status = $('matchStatus'); status.className = 'status show warn'; status.textContent = '正在比對行程名稱、景點特色與官網關鍵字…';
     let trips = [];
     try { trips = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
-    const keywordWords = parseKeywords($('matchKeywords').value);
+    let customerRequest = {}; try { customerRequest=JSON.parse(button.dataset.customerRequest||'{}'); } catch (_) {}
+    const operationalPrefs = new Set(customerRequest.preferences || []);
+    const keywordWords = parseKeywords($('matchKeywords').value).filter(word=>!operationalPrefs.has(word));
     const travelerNeeds = { travelerType:$('travelerType').value, avoidSlopes:$('avoidSlopes').checked,
       avoidStairs:$('avoidStairs').checked, easyPace:$('easyPace').checked };
     const contentWords = [...new Set([...keywordWords.flatMap(expandKeyword), ...profileSearchTerms(travelerNeeds)])];
@@ -338,24 +358,43 @@
         } catch (error) { officialError = officialError || error.message; }
       }
     }
-    const results = rankTrips(trips, { people:$('matchPeople').value, destination:$('matchDestination').value,
-      budget:$('matchBudget').value, month:$('matchMonth').value, keywords:$('matchKeywords').value, ...travelerNeeds });
+    const exactNeeds = { people:$('matchPeople').value, destination:$('matchDestination').value,
+      budget:$('matchBudget').value, month:$('matchMonth').value, keywords:keywordWords.join('、'),
+      days:customerRequest.days, departureAirport:(customerRequest.airports||[])[0], dateFrom:(customerRequest.dates||[])[0], dateTo:(customerRequest.dates||[])[1]||(customerRequest.dates||[])[0],
+      avoidLowCost:(customerRequest.preferences||[]).includes('不要廉航'), avoidShopping:(customerRequest.preferences||[]).includes('不要購物站'), ...travelerNeeds };
+    let results = rankTrips(trips, exactNeeds), relaxed = '';
+    if (!results.length) {
+      const alternatives = [
+        ...((customerRequest.alternatives||[]).map(destination=>[{...exactNeeds,destination},`已放寬：改用備選目的地 ${destination}`])),
+        [{...exactNeeds, dateFrom:'',dateTo:''}, '已放寬：指定日期範圍'],
+        [{...exactNeeds, month:''}, '已放寬：出發月份'],
+        [{...exactNeeds, departureAirport:''}, '已放寬：出發機場'],
+        [{...exactNeeds, days:''}, '已放寬：旅遊天數'],
+        [{...exactNeeds, budget:Math.round((Number(exactNeeds.budget)||0)*1.15)}, '已放寬：預算上限增加 15%'],
+        [{...exactNeeds, keywords:''}, '已放寬：指定偏好']
+      ];
+      for (const [needs,label] of alternatives) { const found=rankTrips(trips,needs); if(found.length){results=found.map(item=>({...item,relaxation:label}));relaxed=label;break;} }
+    }
     const box = $('matchResults'); box.innerHTML = '';
     status.className = 'status show ' + (results.length ? 'ok' : 'warn');
-    status.textContent = results.length ? `找到 ${results.length} 個符合關鍵字的行程。${contentChecked ? ` 已檢查 ${contentChecked} 團的完整每日行程。` : ''}${officialCount ? ` 官網另補充 ${officialCount} 筆搜尋結果。` : ''}` : (officialError ? `官網搜尋未完成：${officialError}；本機資料庫也沒有符合全部條件的行程。` : `沒有符合條件的行程。${contentChecked ? `已檢查 ${contentChecked} 團完整內容。` : '請先從行程資料庫同步目的地行程，再搜尋內容。'}`);
+    status.textContent = results.length ? `${relaxed?`沒有完全符合的商品；${relaxed}後，`:''}找到 ${results.length} 個行程。${contentChecked ? ` 已檢查 ${contentChecked} 團的完整每日行程。` : ''}${officialCount ? ` 官網另補充 ${officialCount} 筆搜尋結果。` : ''}` : (officialError ? `官網搜尋未完成：${officialError}；本機資料庫也沒有符合全部條件的行程。` : `沒有符合條件的行程。${contentChecked ? `已檢查 ${contentChecked} 團完整內容。` : '請先從行程資料庫同步目的地行程，再搜尋內容。'}`);
+    if (customerRequest.travelType && customerRequest.travelType !== '跟團') status.textContent += ` 注意：目前官方資料來源以團體行程為主，「${customerRequest.travelType}」商品需至外部訂房／機票系統人工確認。`;
     results.forEach((item, index) => {
-      const card = document.createElement('div'); card.className = 'hint';
+      const card = document.createElement('div'); card.className = 'hint'; card.dataset.matchIndex=String(index);
       card.style.borderLeft = index < 3 ? '5px solid #d92d45' : '1px solid #e6ebf2';
       const contentProof = (item.trip.contentMatches || []).slice(0, 2).map(match => `<div style="margin-top:7px;padding:7px 9px;background:#fff7ed;border-radius:7px;color:#7a3e00"><b>第 ${match.day || '?'} 天${match.date ? `（${match.date}）` : ''}</b>｜${match.excerpt}</div>`).join('');
       card.innerHTML = `<strong>${index + 1}. ${item.trip.code ? item.trip.code + '｜' : ''}${item.trip.title || item.trip.mainTitle || '未命名行程'}</strong>
         <div style="margin-top:6px">${item.trip.airline || '航空待確認'}｜${item.trip.dates || '日期待確認'}</div>
         <div style="margin-top:4px">每人：${item.price ? item.price.toLocaleString('zh-TW') + ' 元起' : '價格待確認'}${item.total ? `｜${item.people} 人預估 ${item.total.toLocaleString('zh-TW')} 元起` : ''}</div>
         <div style="margin-top:6px;color:#087a55">推薦原因：${item.reasons.join('；')}</div>
+        ${item.relaxation?`<div style="margin-top:6px;color:#a85b00"><b>替代方案：${item.relaxation}</b></div>`:''}
         ${contentProof}
         <div style="margin-top:5px;color:#a85b00">⚠️ 實際售價與 ${item.people} 人機位需回官網確認</div>
+        <div style="margin-top:5px;color:#667085">資料來源：${item.trip.source || '待人工確認'}｜最後更新：${item.trip.lastChecked || item.trip.updated || '待人工確認'}</div>
         ${item.trip.url ? `<div style="margin-top:7px"><a href="${item.trip.url}" target="_blank" rel="noopener">開啟官網行程</a></div>` : ''}`;
       box.appendChild(card);
     });
+    document.dispatchEvent(new CustomEvent('travel:match-results',{detail:results}));
     button.disabled = false; button.textContent = '幫客人找適合的團';
   });
 })(typeof window !== 'undefined' ? window : globalThis);
