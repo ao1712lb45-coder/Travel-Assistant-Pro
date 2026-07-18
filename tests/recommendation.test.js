@@ -75,6 +75,17 @@ test('human show aliases match common official attraction names', () => {
   assert.ok(matcher.expandKeyword('人妖秀').includes('alcazar'));
 });
 
+test('snow experience never matches tropical beach trips', () => {
+  const options=[
+    {code:'SPK05BR270110AA',title:'北海道玩雪五日',highlights:['雪盆','雪上活動'],price:'45,000元起'},
+    {code:'BKK05BR270110BB',title:'泰國曼谷五日',highlights:['水上市場','夜市'],price:'30,000元起'},
+    {code:'CEB05JX270110CC',title:'宿霧海島五日',highlights:['沙灘','浮潛'],price:'32,000元起'}
+  ];
+  const result=matcher.rankTrips(options,{keywords:'玩雪'});
+  assert.deepEqual(result.map(item=>item.trip.code),['SPK05BR270110AA']);
+  assert.ok(matcher.expandKeyword('玩雪').includes('滑雪'));
+});
+
 test('full itinerary matches can make hidden attractions searchable', () => {
   const hidden = [{ code:'FUK05BR261104U', title:'超值九州５日', price:'39,900元起', dates:'11/4',
     officialMatchedKeywords:['真名井瀑布'], contentMatches:[{ day:2, excerpt:'高千穗峽－真名井瀑布' }] }];

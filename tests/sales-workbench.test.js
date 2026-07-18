@@ -27,6 +27,12 @@ test('lists missing questions and generates a copyable reply',()=>{
   assert.match(questionReply(result),/出發機場/);
 });
 
+test('recognizes snow play as a required experience',()=>{
+  const result=parseCustomerMessage('寒假想帶小孩玩雪，桃園出發，2大1小，五萬內');
+  assert.ok(result.preferences.includes('玩雪'));
+  assert.ok(result.missing.includes('目的地或可接受的備選地點'));
+});
+
 test('comparison never invents unknown operational fields',()=>{
   const record=comparisonRecord({trip:{code:'TYO05JX261101AA',title:'東京五日',price:'39,900元起',dates:'2026/11/01',airline:'星宇航空',source:'besttour-search',updated:'2026-07-18T10:00:00Z'}});
   assert.equal(record.hotels,'待人工確認');

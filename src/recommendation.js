@@ -18,6 +18,8 @@
     '溫泉':['溫泉','泡湯','湯泉','美人湯'],
     '賞楓':['賞楓','楓葉','紅葉','楓紅'],
     '賞櫻':['賞櫻','櫻花','花見'],
+    '玩雪':['玩雪','滑雪','雪地','雪盆','雪樂園','雪祭','冰雪','戲雪','雪上活動'],
+    '滑雪':['滑雪','玩雪','雪地','雪盆','雪樂園','雪祭','冰雪','戲雪','雪上活動'],
     '夜市':['夜市','市集','步行街']
   };
   const PROFILE_TERMS = {
@@ -370,8 +372,7 @@
         [{...exactNeeds, month:''}, '已放寬：出發月份'],
         [{...exactNeeds, departureAirport:''}, '已放寬：出發機場'],
         [{...exactNeeds, days:''}, '已放寬：旅遊天數'],
-        [{...exactNeeds, budget:Math.round((Number(exactNeeds.budget)||0)*1.15)}, '已放寬：預算上限增加 15%'],
-        [{...exactNeeds, keywords:''}, '已放寬：指定偏好']
+        [{...exactNeeds, budget:Math.round((Number(exactNeeds.budget)||0)*1.15)}, '已放寬：預算上限增加 15%']
       ];
       for (const [needs,label] of alternatives) { const found=rankTrips(trips,needs); if(found.length){results=found.map(item=>({...item,relaxation:label}));relaxed=label;break;} }
     }
