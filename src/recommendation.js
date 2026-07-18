@@ -404,7 +404,7 @@
       box.appendChild(card);
     });
     document.dispatchEvent(new CustomEvent('travel:match-results',{detail:results}));
-    button.disabled = false; button.textContent = '幫客人找適合的團';
+    button.disabled = false; button.textContent = '深入搜尋';
   });
 })(typeof window !== 'undefined' ? window : globalThis);
 
