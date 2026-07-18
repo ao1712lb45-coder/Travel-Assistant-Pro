@@ -31,6 +31,25 @@ test('broad Japan destination includes Hokkaido and Tokyo', () => {
   assert.deepEqual(result.map(item => item.trip.code).sort(), ['SPK06FD261105AB','TYO05JX261111SM']);
 });
 
+test('senior-friendly preference raises relaxed itineraries and avoids stairs or slopes when requested', () => {
+  const options = [
+    { code:'FUK05BR261101AA', title:'九州慢遊溫泉五日', price:'35,000元起', dates:'11/1', highlights:['溫泉','觀光列車','遊船'] },
+    { code:'FUK05BR261102BB', title:'九州健行五日', price:'34,000元起', dates:'11/2', highlights:['登山步道','石階'] }
+  ];
+  const result = matcher.rankTrips(options, { people:2, destination:'九州', budget:50000, travelerType:'senior', avoidSlopes:true, avoidStairs:true, easyPace:true });
+  assert.deepEqual(result.map(item => item.trip.code), ['FUK05BR261101AA']);
+  assert.match(result[0].reasons.join(' '), /長輩|輕鬆/);
+});
+
+test('family and youth profiles reward matching experiences', () => {
+  const options = [
+    { code:'TYO05JX261101AA', title:'東京親子五日', price:'40,000元起', dates:'11/1', highlights:['迪士尼','水族館'] },
+    { code:'TYO05JX261102BB', title:'東京潮玩五日', price:'40,000元起', dates:'11/2', highlights:['夜市','自由活動','單車體驗'] }
+  ];
+  assert.equal(matcher.rankTrips(options, { travelerType:'family' })[0].trip.code, 'TYO05JX261101AA');
+  assert.equal(matcher.rankTrips(options, { travelerType:'youth' })[0].trip.code, 'TYO05JX261102BB');
+});
+
 test('keyword is a required filter when the user enters one', () => {
   const result = matcher.rankTrips(trips, { people:2, destination:'日本', budget:50000, keywords:'人妖秀' });
   assert.equal(result.length, 0);

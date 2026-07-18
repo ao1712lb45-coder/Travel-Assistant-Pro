@@ -20,6 +20,13 @@
     '賞櫻':['賞櫻','櫻花','花見'],
     '夜市':['夜市','市集','步行街']
   };
+  const PROFILE_TERMS = {
+    senior:['溫泉','遊船','纜車','觀光列車','慢遊','輕鬆','登山','健行','步道','階梯','樓梯','爬坡','陡坡'],
+    family:['親子','樂園','動物園','水族館','迪士尼','環球影城','農場','DIY','體驗'],
+    youth:['體驗','夜市','樂園','自由活動','浮潛','滑雪','越野','健行','單車','遊船']
+  };
+  const SLOPE_TERMS = /登山|健行|爬山|爬坡|陡坡|山路|上坡|下坡/;
+  const STAIR_TERMS = /階梯|樓梯|石階|千階|登階/;
 
   function parseKeywords(value) { return String(value || '').split(/[、,，\s]+/).map(word => word.trim()).filter(Boolean).slice(0, 5); }
   function sixMonthRange(base = new Date()) {
@@ -38,7 +45,16 @@
   }
 
   function tripText(trip) {
-    return [trip.code, trip.title, trip.mainTitle, trip.subtitle, trip.destination, trip.airline, ...(trip.highlights || []), ...(trip.officialMatchedKeywords || [])].join(' ').toLowerCase();
+    const content = (trip.contentMatches || []).flatMap(match => [match.title, match.excerpt, ...(match.attractions || [])]);
+    return [trip.code, trip.title, trip.mainTitle, trip.subtitle, trip.destination, trip.airline, ...(trip.highlights || []), ...(trip.officialMatchedKeywords || []), ...content].join(' ').toLowerCase();
+  }
+
+  function profileSearchTerms(needs) {
+    const terms = [...(PROFILE_TERMS[String(needs.travelerType || '')] || [])];
+    if (needs.avoidSlopes) terms.push('登山','健行','爬坡','陡坡','山路');
+    if (needs.avoidStairs) terms.push('階梯','樓梯','石階');
+    if (needs.easyPace) terms.push('慢遊','輕鬆','自由活動','溫泉','遊船');
+    return [...new Set(terms)];
   }
 
   function destinationMatches(trip, wanted) {
@@ -70,6 +86,8 @@
       const price = numberFrom(trip.price);
       if (!basicMatches(trip, needs)) return null;
       const haystack = tripText(trip);
+      if (needs.avoidSlopes && SLOPE_TERMS.test(haystack)) return null;
+      if (needs.avoidStairs && STAIR_TERMS.test(haystack)) return null;
       const matchedKeywords = keywords.filter(word => expandKeyword(word).some(alias => haystack.includes(alias)));
       if (keywords.length && !matchedKeywords.length) return null;
       let score = 50;
@@ -78,6 +96,17 @@
       if (budget && price) { score += Math.max(0, 20 - Math.round((price / budget) * 10)); reasons.push(`每人 ${price.toLocaleString('zh-TW')} 元，在預算內`); }
       if (needs.month) { score += 15; reasons.push(`有 ${Number(needs.month)} 月出發日`); }
       if (matchedKeywords.length) { score += matchedKeywords.length * 8; reasons.push(`符合偏好：${matchedKeywords.join('、')}`); }
+      const travelerType = String(needs.travelerType || '');
+      const profileLabels = { senior:'長輩／銀髮', family:'親子家庭', youth:'年輕人體驗' };
+      const positive = travelerType === 'senior' ? /溫泉|遊船|纜車|觀光列車|慢遊|輕鬆/ : travelerType === 'family' ? /親子|樂園|動物園|水族館|迪士尼|環球影城|農場|DIY/ : travelerType === 'youth' ? /體驗|夜市|樂園|自由活動|浮潛|滑雪|越野|健行|單車/ : null;
+      if (positive && positive.test(haystack)) { score += 18; reasons.push(`適合${profileLabels[travelerType]}的內容`); }
+      if (travelerType === 'senior' && (SLOPE_TERMS.test(haystack) || STAIR_TERMS.test(haystack))) { score -= 25; reasons.push('含步道／坡道資訊，長輩需再評估'); }
+      if (needs.easyPace) {
+        if (/慢遊|輕鬆|自由活動|溫泉|遊船/.test(haystack)) { score += 12; reasons.push('有較輕鬆的行程內容'); }
+        if (SLOPE_TERMS.test(haystack) || STAIR_TERMS.test(haystack)) score -= 15;
+      }
+      if (needs.avoidSlopes) reasons.push('未在已取得文字中發現明顯爬坡描述，仍需人工確認');
+      if (needs.avoidStairs) reasons.push('未在已取得文字中發現明顯樓梯描述，仍需人工確認');
       if (!reasons.length) reasons.push('符合目前設定的基本條件');
       return { trip, price, people, total: price ? price * people : 0, score, reasons };
     }).filter(Boolean).sort((a, b) => b.score - a.score || a.price - b.price).slice(0, 8);
@@ -107,11 +136,13 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, parseKeywords, sixMonthRange, expandKeyword, numberFrom, destinationMatches, monthMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
   if (!button) return;
+  const keywordInput = $('matchKeywords');
+  if (keywordInput && !$('travelerType')) keywordInput.insertAdjacentHTML('afterend', `<div class="grid2" style="margin-top:10px"><div><label>旅客類型</label><select id="travelerType"><option value="">不限</option><option value="senior">長輩／銀髮</option><option value="family">親子家庭</option><option value="youth">年輕人體驗</option></select></div><div><label>行動與步調需求</label><div class="hint" style="padding:8px"><label style="font-weight:400"><input id="avoidSlopes" type="checkbox" style="width:auto"> 少爬坡／避免登山</label><label style="font-weight:400;margin-top:5px"><input id="avoidStairs" type="checkbox" style="width:auto"> 少樓梯／避免階梯</label><label style="font-weight:400;margin-top:5px"><input id="easyPace" type="checkbox" style="width:auto"> 步調輕鬆</label></div></div></div><div class="note">坡道、樓梯與無障礙資訊依官網文字初步判斷，報名前仍需向業務、景點及飯店確認。</div>`);
 
   function localDate(date) {
     const year = date.getFullYear();
@@ -259,6 +290,9 @@
     let trips = [];
     try { trips = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
     const keywordWords = parseKeywords($('matchKeywords').value);
+    const travelerNeeds = { travelerType:$('travelerType').value, avoidSlopes:$('avoidSlopes').checked,
+      avoidStairs:$('avoidStairs').checked, easyPace:$('easyPace').checked };
+    const contentWords = [...new Set([...keywordWords.flatMap(expandKeyword), ...profileSearchTerms(travelerNeeds)])];
     let officialCount = 0, officialError = '';
     if (keywordWords.length) {
       try {
@@ -278,15 +312,14 @@
       } catch (error) { officialError = error.message; }
     }
     let contentChecked = 0;
-    if (keywordWords.length) {
+    if (contentWords.length) {
       const needs = { people:$('matchPeople').value, destination:$('matchDestination').value,
         budget:$('matchBudget').value, month:$('matchMonth').value };
       const candidates = trips.filter(trip => trip.code && basicMatches(trip, needs)).slice(0, 50);
       if (candidates.length) {
         status.textContent = `正在深入檢查 ${candidates.length} 團的每日行程、景點說明與體驗內容…`;
         try {
-          const aliases = [...new Set(keywordWords.flatMap(expandKeyword))];
-          const params = new URLSearchParams({ codes:candidates.map(trip => trip.code).join(','), keywords:aliases.join(',') });
+          const params = new URLSearchParams({ codes:candidates.map(trip => trip.code).join(','), keywords:contentWords.join(',') });
           const payload = await fetchJsonWithRetry('/api/besttour/content-search?' + params, 1, 70000);
           contentChecked = payload.data.checked;
           const byCode = new Map(trips.map(trip => [trip.code, trip]));
@@ -306,7 +339,7 @@
       }
     }
     const results = rankTrips(trips, { people:$('matchPeople').value, destination:$('matchDestination').value,
-      budget:$('matchBudget').value, month:$('matchMonth').value, keywords:$('matchKeywords').value });
+      budget:$('matchBudget').value, month:$('matchMonth').value, keywords:$('matchKeywords').value, ...travelerNeeds });
     const box = $('matchResults'); box.innerHTML = '';
     status.className = 'status show ' + (results.length ? 'ok' : 'warn');
     status.textContent = results.length ? `找到 ${results.length} 個符合關鍵字的行程。${contentChecked ? ` 已檢查 ${contentChecked} 團的完整每日行程。` : ''}${officialCount ? ` 官網另補充 ${officialCount} 筆搜尋結果。` : ''}` : (officialError ? `官網搜尋未完成：${officialError}；本機資料庫也沒有符合全部條件的行程。` : `沒有符合條件的行程。${contentChecked ? `已檢查 ${contentChecked} 團完整內容。` : '請先從行程資料庫同步目的地行程，再搜尋內容。'}`);

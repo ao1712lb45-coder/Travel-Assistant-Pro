@@ -41,7 +41,10 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(page, /data-region="中西歐">中西歐全部/);
     const recommendation = await fetch(`${base}/src/recommendation.js`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(recommendation.status, 200);
-    assert.match(await recommendation.text(), /stopSync/);
+    const recommendationScript = await recommendation.text();
+    assert.match(recommendationScript, /stopSync/);
+    assert.match(recommendationScript, /travelerType/);
+    assert.match(recommendationScript, /avoidSlopes/);
     assert.equal(authorized.headers.get('x-frame-options'), 'DENY');
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
