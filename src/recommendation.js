@@ -33,6 +33,8 @@
   const SHOPPING_TERMS = /購物站|購物店|免稅店|土產店|珠寶店|乳膠店/;
 
   function parseKeywords(value) { return String(value || '').split(/[、,，\s]+/).map(word => word.trim()).filter(Boolean).slice(0, 5); }
+  const NON_CONTENT_PREFERENCES = new Set(['跟團','自由行','機加酒','不要廉航','可搭廉航','不要購物站','可接受購物站','少爬坡','少樓梯','長輩適合','親子友善','年輕人體驗']);
+  function contentKeywords(value) { return parseKeywords(value).filter(word=>!NON_CONTENT_PREFERENCES.has(word)); }
   function sixMonthRange(base = new Date()) {
     const from = new Date(base.getFullYear(), base.getMonth(), base.getDate());
     const to = new Date(from); to.setMonth(to.getMonth() + 6);
@@ -163,7 +165,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -317,8 +319,7 @@
     let trips = [];
     try { trips = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
     let customerRequest = {}; try { customerRequest=JSON.parse(button.dataset.customerRequest||'{}'); } catch (_) {}
-    const operationalPrefs = new Set(customerRequest.preferences || []);
-    const keywordWords = parseKeywords($('matchKeywords').value).filter(word=>!operationalPrefs.has(word));
+    const keywordWords = contentKeywords($('matchKeywords').value);
     const travelerNeeds = { travelerType:$('travelerType').value, avoidSlopes:$('avoidSlopes').checked,
       avoidStairs:$('avoidStairs').checked, easyPace:$('easyPace').checked };
     const contentWords = [...new Set([...keywordWords.flatMap(expandKeyword), ...profileSearchTerms(travelerNeeds)])];

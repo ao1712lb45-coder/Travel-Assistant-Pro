@@ -86,6 +86,10 @@ test('snow experience never matches tropical beach trips', () => {
   assert.ok(matcher.expandKeyword('玩雪').includes('滑雪'));
 });
 
+test('snow remains a content keyword while operational preferences are removed', () => {
+  assert.deepEqual(matcher.contentKeywords('玩雪、跟團、不要廉航'),['玩雪']);
+});
+
 test('requested year rejects trips from a different known year', () => {
   const options=[
     {code:'SPK05BR270110AA',title:'北海道玩雪五日',dates:'2027/01/10',highlights:['玩雪'],price:'45,000元起'},
