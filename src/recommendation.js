@@ -50,7 +50,8 @@
 
   function tripText(trip) {
     const content = (trip.contentMatches || []).flatMap(match => [match.title, match.excerpt, ...(match.attractions || [])]);
-    return [trip.code, trip.title, trip.mainTitle, trip.subtitle, trip.destination, trip.airline, ...(trip.highlights || []), ...(trip.officialMatchedKeywords || []), ...content].join(' ').toLowerCase();
+    // Search API tags only record the query used; they are not proof that the itinerary contains it.
+    return [trip.code, trip.title, trip.mainTitle, trip.subtitle, trip.destination, trip.airline, ...(trip.highlights || []), ...content].join(' ').toLowerCase();
   }
 
   function profileSearchTerms(needs) {
@@ -74,6 +75,12 @@
     return new RegExp(`(?:^|[^0-9])0?${Number(month)}[\\/]`).test(String(trip.dates || ''));
   }
 
+  function yearMatches(trip, year) {
+    if (!year) return true;
+    const years=[...String(trip.dates||'').matchAll(/(?:^|[^0-9])(20\d{2})[\/.-]/g)].map(match=>+match[1]);
+    return !years.length || years.includes(Number(year));
+  }
+
   function dateRangeMatches(trip, from, to) {
     if (!from && !to) return true;
     const values=[...String(trip.dates||'').matchAll(/20\d{2}[\/.-]\d{1,2}[\/.-]\d{1,2}/g)].map(match=>new Date(match[0].replace(/[.]/g,'-'))).filter(date=>!Number.isNaN(date.getTime()));
@@ -84,7 +91,7 @@
 
   function basicMatches(trip, needs) {
     const price = numberFrom(trip.price), budget = Math.max(0, Number(needs.budget) || 0), people = Math.max(1, Number(needs.people) || 1);
-    if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month) || !dateRangeMatches(trip,needs.dateFrom,needs.dateTo)) return false;
+    if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month) || !yearMatches(trip,needs.year) || !dateRangeMatches(trip,needs.dateFrom,needs.dateTo)) return false;
     if (budget && (!price || price > budget)) return false;
     if (Number(trip.seats) > 0 && Number(trip.seats) < people) return false;
     const wantedDays = Number(needs.days) || 0, tripDays = Number((String(trip.days || '').match(/\d{1,2}/) || [])[0]) || 0;
@@ -156,7 +163,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, dateRangeMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -361,7 +368,7 @@
       }
     }
     const exactNeeds = { people:$('matchPeople').value, destination:$('matchDestination').value,
-      budget:$('matchBudget').value, month:$('matchMonth').value, keywords:keywordWords.join('、'),
+      budget:$('matchBudget').value, month:$('matchMonth').value, year:customerRequest.requestedYear, keywords:keywordWords.join('、'),
       days:customerRequest.days, departureAirport:(customerRequest.airports||[])[0], dateFrom:(customerRequest.dates||[])[0], dateTo:(customerRequest.dates||[])[1]||(customerRequest.dates||[])[0],
       avoidLowCost:(customerRequest.preferences||[]).includes('不要廉航'), avoidShopping:(customerRequest.preferences||[]).includes('不要購物站'), ...travelerNeeds };
     let results = rankTrips(trips, exactNeeds), relaxed = '';

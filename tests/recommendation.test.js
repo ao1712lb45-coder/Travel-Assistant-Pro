@@ -78,12 +78,20 @@ test('human show aliases match common official attraction names', () => {
 test('snow experience never matches tropical beach trips', () => {
   const options=[
     {code:'SPK05BR270110AA',title:'北海道玩雪五日',highlights:['雪盆','雪上活動'],price:'45,000元起'},
-    {code:'BKK05BR270110BB',title:'泰國曼谷五日',highlights:['水上市場','夜市'],price:'30,000元起'},
-    {code:'CEB05JX270110CC',title:'宿霧海島五日',highlights:['沙灘','浮潛'],price:'32,000元起'}
+    {code:'BKK05BR270110BB',title:'泰國曼谷五日',highlights:['水上市場','夜市'],officialMatchedKeywords:['玩雪'],price:'30,000元起'},
+    {code:'CEB05JX270110CC',title:'宿霧海島五日',highlights:['沙灘','浮潛'],officialMatchedKeywords:['玩雪'],price:'32,000元起'}
   ];
   const result=matcher.rankTrips(options,{keywords:'玩雪'});
   assert.deepEqual(result.map(item=>item.trip.code),['SPK05BR270110AA']);
   assert.ok(matcher.expandKeyword('玩雪').includes('滑雪'));
+});
+
+test('requested year rejects trips from a different known year', () => {
+  const options=[
+    {code:'SPK05BR270110AA',title:'北海道玩雪五日',dates:'2027/01/10',highlights:['玩雪'],price:'45,000元起'},
+    {code:'SPK05BR260110AA',title:'北海道玩雪五日',dates:'2026/01/10',highlights:['玩雪'],price:'42,000元起'}
+  ];
+  assert.deepEqual(matcher.rankTrips(options,{month:1,year:2027,keywords:'玩雪'}).map(item=>item.trip.code),['SPK05BR270110AA']);
 });
 
 test('full itinerary matches can make hidden attractions searchable', () => {

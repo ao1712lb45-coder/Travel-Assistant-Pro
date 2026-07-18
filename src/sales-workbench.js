@@ -33,7 +33,10 @@
     const shortDates = [...shortDateSource.matchAll(/(?<!\d)(\d{1,2})[\/.-](\d{1,2})(?!\d)/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
     const chineseDates = [...text.matchAll(/(\d{1,2})月(\d{1,2})[日號]?/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
     const dates = [...new Set([...fullDates,...shortDates,...chineseDates])].slice(0,2);
-    const monthOnly = (text.match(/(\d{1,2})月(?:底|中|初|份)?/) || [])[1];
+    const relativeMonth = text.match(/(今年|明年|後年)?\s*([一二兩三四五六七八九十\d]{1,3})月(?:底|中|初|份)?/);
+    const monthOnly = relativeMonth ? (/^\d+$/.test(relativeMonth[2]) ? +relativeMonth[2] : chineseNumber(relativeMonth[2])) : null;
+    const yearOffset = relativeMonth && relativeMonth[1] ? ({今年:0,明年:1,後年:2}[relativeMonth[1]]) : null;
+    const requestedYear = yearOffset == null ? null : now.getFullYear() + yearOffset;
     const airports = AIRPORTS.filter(name => text.includes(name));
     const destinations = DESTINATIONS.filter(name => text.includes(name));
     const adult = text.match(/(?:大人|成人|大)(?:\s*)(\d+)\s*(?:位|人)?|(?<!\d)(\d+)\s*(?:位|人)?成人/);
@@ -43,6 +46,8 @@
     const adults = compactParty ? +compactParty[1] : adult ? +(adult[1] || adult[2]) : null;
     const children = compactParty ? +compactParty[2] : child ? +child[1] : 0;
     const infants = compactParty && compactParty[3] ? +compactParty[3] : infant ? +infant[1] : 0;
+    const totalPartyMatch = !adults && text.match(/(?<![\d萬千])(\d+|[一二兩三四五六七八九十]+)\s*(?:位|人)(?!\s*(?:成人|大人|小孩|兒童|嬰兒))/);
+    const totalPeople = totalPartyMatch ? (/^\d+$/.test(totalPartyMatch[1]) ? +totalPartyMatch[1] : chineseNumber(totalPartyMatch[1])) : (adults ? adults + children + infants : null);
     const budgetMatch = text.match(/(?:每人|一人|一位|單人)?\s*(?:預算|抓|大約|約)?\s*(\d+(?:\.\d+)?\s*(?:萬|千)|\d{4,6})\s*(?:元)?(?:以內|以下|左右)?/);
     const totalBudget = /總預算|全部預算|一家預算/.test(text);
     const chineseBudget = text.match(/([一二兩三四五六七八九十]+)\s*萬/);
@@ -52,8 +57,8 @@
     const preferences = PREFS.filter(([,pattern]) => pattern.test(text)).map(([label]) => label);
     const knownPrefs = new Set(preferences);
     const sights = text.split(/[，,、。\n]/).map(clean).filter(part => /想去|一定要|指定|希望有/.test(part) && part.length <= 40);
-    const result = { raw:text, dates, month:monthOnly ? +monthOnly : (dates[0] ? +dates[0].slice(5,7) : null), airports,
-      destination:destinations[0] || '', alternatives:destinations.slice(1), adults, children, infants, budget,
+    const result = { raw:text, dates, month:monthOnly || (dates[0] ? +dates[0].slice(5,7) : null), requestedYear, airports,
+      destination:destinations[0] || '', alternatives:destinations.slice(1), adults, children, infants, totalPeople, budget,
       budgetType:totalBudget ? 'total' : 'perPerson', days:dayMatch ? +dayMatch[1] : null, travelType, preferences:[...knownPrefs], sights };
     result.missing = missingFields(result);
     return result;
@@ -101,8 +106,8 @@
     section.insertBefore(box,intro);
     const byId=id=>document.getElementById(id); let parsed=null, currentResults=[];
     const value=(label,v)=>`<div><b>${label}</b>：${v||'未提供'}</div>`;
-    byId('parseCustomerLine').onclick=()=>{parsed=parseCustomerMessage(byId('customerLineRequest').value);byId('requestSummary').innerHTML=[value('日期',parsed.dates.join('～')||(parsed.month?parsed.month+' 月':'')),value('機場',parsed.airports.join('、')),value('目的地',[parsed.destination,...parsed.alternatives].filter(Boolean).join('／')),value('人數',parsed.adults?`${parsed.adults}大 ${parsed.children}小 ${parsed.infants}嬰`:''),value('預算',parsed.budget?`${parsed.budgetType==='total'?'總預算':'每人'} ${parsed.budget.toLocaleString('zh-TW')} 元`:''),value('天數',parsed.days?parsed.days+'天':''),value('類型',parsed.travelType),value('偏好',parsed.preferences.join('、')),`<div style="margin-top:6px;color:${parsed.missing.length?'#a85b00':'#087a55'}"><b>${parsed.missing.length?'仍需詢問':'資料狀態'}</b>：${parsed.missing.join('、')||'主要條件已齊全'}</div>`].join('');byId('questionReply').value=questionReply(parsed);};
-    byId('applyCustomerSearch').onclick=()=>{if(!parsed)byId('parseCustomerLine').click();if(!parsed)return;byId('matchPeople').value=(parsed.adults||0)+(parsed.children||0)+(parsed.infants||0)||2;byId('matchDestination').value=parsed.destination;const heads=(parsed.adults||0)+(parsed.children||0)||1;byId('matchBudget').value=parsed.budgetType==='total'?Math.round((parsed.budget||0)/heads):(parsed.budget||'');byId('matchMonth').value=parsed.month||'';byId('matchKeywords').value=[...parsed.sights,...parsed.preferences.filter(x=>!['跟團','自由行','機加酒'].includes(x))].join('、');if(parsed.preferences.includes('長輩適合'))byId('travelerType').value='senior';if(parsed.preferences.includes('親子友善'))byId('travelerType').value='family';if(parsed.preferences.includes('年輕人體驗'))byId('travelerType').value='youth';byId('avoidSlopes').checked=parsed.preferences.includes('少爬坡');byId('avoidStairs').checked=parsed.preferences.includes('少樓梯');run.click();};
+    byId('parseCustomerLine').onclick=()=>{parsed=parseCustomerMessage(byId('customerLineRequest').value);const dateSummary=parsed.dates.join('～')||(parsed.month?`${parsed.requestedYear?parsed.requestedYear+' 年 ':''}${parsed.month} 月`:'');const peopleSummary=parsed.adults?`${parsed.adults}大 ${parsed.children}小 ${parsed.infants}嬰`:(parsed.totalPeople?`總共 ${parsed.totalPeople} 位（組成待確認）`:'');byId('requestSummary').innerHTML=[value('日期',dateSummary),value('機場',parsed.airports.join('、')),value('目的地',[parsed.destination,...parsed.alternatives].filter(Boolean).join('／')),value('人數',peopleSummary),value('預算',parsed.budget?`${parsed.budgetType==='total'?'總預算':'每人'} ${parsed.budget.toLocaleString('zh-TW')} 元`:''),value('天數',parsed.days?parsed.days+'天':''),value('類型',parsed.travelType),value('偏好',parsed.preferences.join('、')),`<div style="margin-top:6px;color:${parsed.missing.length?'#a85b00':'#087a55'}"><b>${parsed.missing.length?'仍需詢問':'資料狀態'}</b>：${parsed.missing.join('、')||'主要條件已齊全'}</div>`].join('');byId('questionReply').value=questionReply(parsed);};
+    byId('applyCustomerSearch').onclick=()=>{if(!parsed)byId('parseCustomerLine').click();if(!parsed)return;byId('matchPeople').value=parsed.totalPeople||2;byId('matchDestination').value=parsed.destination;const heads=(parsed.adults||0)+(parsed.children||0)||parsed.totalPeople||1;byId('matchBudget').value=parsed.budgetType==='total'?Math.round((parsed.budget||0)/heads):(parsed.budget||'');byId('matchMonth').value=parsed.month||'';byId('matchKeywords').value=[...parsed.sights,...parsed.preferences.filter(x=>!['跟團','自由行','機加酒'].includes(x))].join('、');if(parsed.preferences.includes('長輩適合'))byId('travelerType').value='senior';if(parsed.preferences.includes('親子友善'))byId('travelerType').value='family';if(parsed.preferences.includes('年輕人體驗'))byId('travelerType').value='youth';byId('avoidSlopes').checked=parsed.preferences.includes('少爬坡');byId('avoidStairs').checked=parsed.preferences.includes('少樓梯');run.click();};
     byId('applyCustomerSearch').addEventListener('click',()=>{if(parsed)run.dataset.customerRequest=JSON.stringify(parsed);},true);
     const copy=id=>navigator.clipboard.writeText(byId(id).value).catch(()=>{}); byId('copyQuestionReply').onclick=()=>copy('questionReply');
     const resultBox=byId('matchResults'); const replyBox=document.createElement('div');replyBox.id='salesReplies';replyBox.style.marginTop='12px';resultBox.insertAdjacentElement('afterend',replyBox);

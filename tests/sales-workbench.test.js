@@ -33,6 +33,15 @@ test('recognizes snow play as a required experience',()=>{
   assert.ok(result.missing.includes('目的地或可接受的備選地點'));
 });
 
+test('recognizes next January and an unspecified party of four',()=>{
+  const result=parseCustomerMessage('我想找明年一月可以玩雪的團 桃園出發 4位 預算6萬/人 跟團',new Date(2026,6,18));
+  assert.equal(result.requestedYear,2027);
+  assert.equal(result.month,1);
+  assert.equal(result.totalPeople,4);
+  assert.equal(result.adults,null);
+  assert.ok(result.missing.includes('大人、兒童與嬰兒人數'));
+});
+
 test('comparison never invents unknown operational fields',()=>{
   const record=comparisonRecord({trip:{code:'TYO05JX261101AA',title:'東京五日',price:'39,900元起',dates:'2026/11/01',airline:'星宇航空',source:'besttour-search',updated:'2026-07-18T10:00:00Z'}});
   assert.equal(record.hotels,'待人工確認');
