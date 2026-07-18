@@ -4,6 +4,10 @@ const assert = require('node:assert/strict');
 require('../src/recommendation.js');
 const matcher = globalThis.TravelRecommendation;
 
+test('one-click region sync covers today through six months later',()=>{
+  assert.deepEqual(matcher.sixMonthRange(new Date(2026,6,18)),{from:'2026-07-18',to:'2027-01-18'});
+});
+
 const trips = [
   { code:'SPK06FD261105AB', title:'楓紅輕旅北海道６日', price:'32,800元起', dates:'10/16、11/5', airline:'泰國亞洲航空', highlights:['紅葉','溫泉'] },
   { code:'TYO05JX261111SM', title:'東京迪士尼５日', price:'39,900元起', dates:'11/11', airline:'星宇航空', highlights:['親子','迪士尼'] },

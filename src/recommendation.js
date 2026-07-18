@@ -22,6 +22,11 @@
   };
 
   function parseKeywords(value) { return String(value || '').split(/[、,，\s]+/).map(word => word.trim()).filter(Boolean).slice(0, 5); }
+  function sixMonthRange(base = new Date()) {
+    const from = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    const to = new Date(from); to.setMonth(to.getMonth() + 6);
+    return { from:localDate(from), to:localDate(to) };
+  }
   function expandKeyword(word) {
     const key = String(word || '').trim().toLowerCase();
     return [...new Set([key, ...(KEYWORD_ALIASES[key] || [])].map(value => String(value).toLowerCase()))];
@@ -102,7 +107,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, parseKeywords, expandKeyword, numberFrom, destinationMatches, monthMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, parseKeywords, sixMonthRange, expandKeyword, numberFrom, destinationMatches, monthMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -146,6 +151,15 @@
     const nextYear = new Date(today); nextYear.setFullYear(today.getFullYear() + 1);
     if (!$('syncDateFrom').value) $('syncDateFrom').value = localDate(today);
     if (!$('syncDateTo').value) $('syncDateTo').value = localDate(nextYear);
+    const quickRegions = $('quickRegionSync');
+    if (quickRegions) quickRegions.addEventListener('click', event => {
+      const button = event.target.closest('button[data-region]');
+      if (!button || syncButton.disabled) return;
+      const range = sixMonthRange(new Date());
+      $('syncKeyword').value = button.dataset.region;
+      $('syncDateFrom').value = range.from; $('syncDateTo').value = range.to; $('syncLimit').value = '5000';
+      syncButton.click();
+    });
     syncButton.addEventListener('click', async () => {
       const keyword = $('syncKeyword').value.trim();
       const status = $('syncStatus');
