@@ -147,6 +147,14 @@
 
   const syncButton = $('syncBesttour');
   if (syncButton) {
+    const stopButton = document.createElement('button');
+    stopButton.id = 'stopSync'; stopButton.type = 'button'; stopButton.textContent = '停止同步'; stopButton.disabled = true;
+    syncButton.insertAdjacentElement('afterend', stopButton);
+    let stopRequested = false;
+    stopButton.addEventListener('click', () => {
+      stopRequested = true; stopButton.disabled = true; stopButton.textContent = '停止中…';
+      const status = $('syncStatus'); status.className = 'status show warn'; status.textContent = '正在完成並儲存目前這一批，完成後就會停止。';
+    });
     const today = new Date();
     const nextYear = new Date(today); nextYear.setFullYear(today.getFullYear() + 1);
     if (!$('syncDateFrom').value) $('syncDateFrom').value = localDate(today);
@@ -164,6 +172,7 @@
       const keyword = $('syncKeyword').value.trim();
       const status = $('syncStatus');
       if (!keyword) { status.className = 'status show warn'; status.textContent = '請輸入地區或關鍵字，例如：東南亞、北海道、沙美島。'; return; }
+      stopRequested = false; stopButton.disabled = false; stopButton.textContent = '停止同步';
       const limit = Number($('syncLimit').value) || 100;
       const fingerprint = JSON.stringify({ keyword, from:$('syncDateFrom').value, to:$('syncDateTo').value, limit });
       let checkpoint = null;
@@ -176,8 +185,9 @@
         let database = [];
         try { database = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
         const byCode = new Map(database.map(trip => [trip.code, trip]));
-        let completed = false, officialPages = 0;
+        let completed = false, stopped = false, officialPages = 0;
         while (checkpoint.processed < limit && !completed) {
+          if (stopRequested) { stopped = true; break; }
           const pageSize = 50;
           const params = new URLSearchParams({ keyword, dateFrom:$('syncDateFrom').value.replaceAll('-','/'),
             dateTo:$('syncDateTo').value.replaceAll('-','/'), page:String(checkpoint.nextPage), pageSize:String(pageSize) });
@@ -197,8 +207,16 @@
           $('syncProgress').value = percent; $('syncProgressPercent').textContent = percent + '%';
           $('syncProgressText').textContent = `已儲存 ${checkpoint.processed} 團，正在讀取第 ${checkpoint.nextPage} 批…`;
           status.textContent = `同步中：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團。`;
+          if (stopRequested) { stopped = true; break; }
           const maxPages = officialPages || 100;
           completed = !payload.data.hasMore || checkpoint.processed >= limit || checkpoint.nextPage > Math.min(100, maxPages);
+        }
+        if (stopped) {
+          localStorage.setItem('travelSyncCheckpoint', JSON.stringify(checkpoint));
+          $('syncProgressText').textContent = `已停止，已安全儲存 ${checkpoint.processed} 團`;
+          status.className = 'status show warn';
+          status.textContent = `同步已停止：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團。再按同一地區即可從第 ${checkpoint.nextPage} 批繼續。`;
+          return;
         }
         localStorage.removeItem('travelSyncCheckpoint');
         $('syncProgress').value = 100; $('syncProgressPercent').textContent = '100%'; $('syncProgressText').textContent = '同步完成';
@@ -208,7 +226,7 @@
       } catch (error) {
         localStorage.setItem('travelSyncCheckpoint', JSON.stringify(checkpoint));
         status.className = 'status show err'; status.textContent = error.message + ` 已保留進度（${checkpoint.processed} 團），稍後再按一次「從 Besttour 官網同步」即可繼續。`;
-      } finally { syncButton.disabled = false; syncButton.textContent = '從 Besttour 官網同步'; }
+      } finally { syncButton.disabled = false; syncButton.textContent = '從 Besttour 官網同步'; stopButton.disabled = true; stopButton.textContent = '停止同步'; }
     });
   }
 

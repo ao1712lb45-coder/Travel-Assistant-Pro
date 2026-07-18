@@ -39,6 +39,9 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(page, /id="quickRegionSync"/);
     assert.match(page, /data-region="日本">日本全部/);
     assert.match(page, /data-region="中西歐">中西歐全部/);
+    const recommendation = await fetch(`${base}/src/recommendation.js`, { headers:{ authorization:basic('team','secret') } });
+    assert.equal(recommendation.status, 200);
+    assert.match(await recommendation.text(), /stopSync/);
     assert.equal(authorized.headers.get('x-frame-options'), 'DENY');
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
