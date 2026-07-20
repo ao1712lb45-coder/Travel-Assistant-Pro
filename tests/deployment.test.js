@@ -42,8 +42,10 @@ test('online deployment protects the app but leaves health checks available', as
     const marketingScript = await marketing.text();
     assert.match(marketingScript, /一鍵產生全部素材/);
     assert.match(marketingScript, /已複製目前素材/);
-    assert.match(page, /id="regenLine">換一篇 LINE/);
-    assert.match(page, /id="regenFacebook">換一篇 Facebook/);
+    assert.match(page, /data-tab="lineOut">社群文案/);
+    assert.match(page, /id="regenLine">換一篇文案/);
+    assert.doesNotMatch(page, /data-tab="fbOut">Facebook/);
+    assert.doesNotMatch(page, /data-tab="threadsOut">Threads/);
     assert.match(page, /id="quickRegionSync"/);
     assert.match(page, /data-region="日本">日本全部/);
     assert.match(page, /data-region="中西歐">中西歐全部/);
