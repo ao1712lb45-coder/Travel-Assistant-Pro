@@ -5,6 +5,9 @@
   const JAPAN = ['TYO','NRT','HND','OSA','KIX','UKB','NGO','SPK','CTS','HKD','FUK','OKA','SDJ','AOJ','AKJ','AXT','TOY','KMJ','KOJ'];
   const SOUTHEAST_ASIA = ['BKK','CNX','HKT','USM','DAD','HAN','SGN','PQC','SIN','KUL','BKI','PEN','DPS','CGK','MNL','CEB','PNH','RGN','BWN','VTE'];
   const ALL_SYNC_REGIONS = ['日本','韓國','東南亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲'];
+  const REGION_SYNC_KEYWORDS = {
+    '南歐':['義大利','西班牙','葡萄牙','希臘','克羅埃西亞','斯洛維尼亞','馬爾他']
+  };
   const REGION_CODES = {
     '日本':JAPAN, '北海道':['SPK','CTS','HKD','AKJ'], '東京':['TYO','NRT','HND'], '大阪':['OSA','KIX'], '九州':['FUK','KMJ','KOJ'],
     '韓國':['SEL','ICN','PUS','CJU'], '東南亞':SOUTHEAST_ASIA, '泰國':['BKK','CNX','HKT','USM'], '曼谷':['BKK'],
@@ -14,7 +17,9 @@
   const STRICT_DESTINATIONS = {
     '印度':{codes:['DEL','BOM','MAA','BLR','CCU','COK','JAI','VNS','ATQ'],terms:['印度共和國']},
     '印尼':{codes:['DPS','CGK','BTH','SUB','JOG'],terms:['印尼','印度尼西亞','峇里島','巴里島','民丹島']},
-    '印度尼西亞':{codes:['DPS','CGK','BTH','SUB','JOG'],terms:['印尼','印度尼西亞','峇里島','巴里島','民丹島']}
+    '印度尼西亞':{codes:['DPS','CGK','BTH','SUB','JOG'],terms:['印尼','印度尼西亞','峇里島','巴里島','民丹島']},
+    '義大利':{codes:['FCO','CIA','MXP','LIN','VCE','BLQ','NAP','PSA'],terms:['義大利','意大利','義瑞','義法','義奧','義斯','羅馬','米蘭','威尼斯','佛羅倫斯','托斯卡尼','五漁村','龐貝']},
+    '意大利':{codes:['FCO','CIA','MXP','LIN','VCE','BLQ','NAP','PSA'],terms:['義大利','意大利','義瑞','義法','義奧','義斯','羅馬','米蘭','威尼斯','佛羅倫斯','托斯卡尼','五漁村','龐貝']}
   };
   const KEYWORD_ALIASES = {
     '人妖':['人妖','人妖秀','變性人秀','蒂芬妮','tiffany','阿卡薩','alcazar','卡里普索','calypso'],
@@ -218,7 +223,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, STRICT_DESTINATIONS, ALL_SYNC_REGIONS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, STRICT_DESTINATIONS, ALL_SYNC_REGIONS, REGION_SYNC_KEYWORDS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -284,13 +289,28 @@
     if (!$('syncDateFrom').value) $('syncDateFrom').value = localDate(today);
     if (!$('syncDateTo').value) $('syncDateTo').value = localDate(nextYear);
     const quickRegions = $('quickRegionSync');
-    if (quickRegions) quickRegions.addEventListener('click', event => {
+    const waitForCurrentSync = () => new Promise(resolve => {
+      const timer = setInterval(() => { if (!syncButton.disabled) { clearInterval(timer); resolve(); } }, 250);
+    });
+    const syncRegionKeywords = async (region, progressPrefix = '') => {
+      const keywords = REGION_SYNC_KEYWORDS[region] || [region];
+      for (let index = 0; index < keywords.length; index++) {
+        if (allSyncCancelled) break;
+        const keyword = keywords[index];
+        $('syncKeyword').value = keyword;
+        const status = $('syncStatus'); status.className = 'status show warn';
+        status.textContent = `${progressPrefix}${region}${keywords.length > 1 ? `（${keyword} ${index + 1}/${keywords.length}）` : ''}行程…`;
+        syncButton.click();
+        await waitForCurrentSync();
+      }
+    };
+    if (quickRegions) quickRegions.addEventListener('click', async event => {
       const button = event.target.closest('button[data-region]');
       if (!button || syncButton.disabled) return;
+      allSyncCancelled = false;
       const range = oneYearRange(new Date());
-      $('syncKeyword').value = button.dataset.region;
       $('syncDateFrom').value = range.from; $('syncDateTo').value = range.to; $('syncLimit').value = '5000';
-      syncButton.click();
+      await syncRegionKeywords(button.dataset.region, '正在下載');
     });
     allSyncButton.addEventListener('click', async () => {
       if (allSyncActive || syncButton.disabled) return;
@@ -300,13 +320,7 @@
       for (let index = 0; index < ALL_SYNC_REGIONS.length; index++) {
         if (allSyncCancelled) break;
         const region = ALL_SYNC_REGIONS[index];
-        $('syncKeyword').value = region;
-        const status = $('syncStatus'); status.className = 'status show warn';
-        status.textContent = `全部同步進度 ${index + 1}/${ALL_SYNC_REGIONS.length}：正在下載${region}行程…`;
-        syncButton.click();
-        await new Promise(resolve => {
-          const timer = setInterval(() => { if (!syncButton.disabled) { clearInterval(timer); resolve(); } }, 250);
-        });
+        await syncRegionKeywords(region, `全部同步進度 ${index + 1}/${ALL_SYNC_REGIONS.length}：正在下載`);
       }
       const database = (() => { try { return JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) { return []; } })();
       const status = $('syncStatus');

@@ -17,6 +17,10 @@ test('all-trip sync covers every quick region without duplicates', () => {
   assert.equal(new Set(matcher.ALL_SYNC_REGIONS).size, matcher.ALL_SYNC_REGIONS.length);
 });
 
+test('South Europe sync expands the broad category into searchable country names', () => {
+  assert.deepEqual(matcher.REGION_SYNC_KEYWORDS['南歐'], ['義大利','西班牙','葡萄牙','希臘','克羅埃西亞','斯洛維尼亞','馬爾他']);
+});
+
 const trips = [
   { code:'SPK06FD261105AB', title:'楓紅輕旅北海道６日', price:'32,800元起', dates:'10/16、11/5', airline:'泰國亞洲航空', highlights:['紅葉','溫泉'] },
   { code:'TYO05JX261111SM', title:'東京迪士尼５日', price:'39,900元起', dates:'11/11', airline:'星宇航空', highlights:['親子','迪士尼'] },
@@ -49,6 +53,18 @@ test('India destination does not match Singapore Little India attractions', () =
   assert.deepEqual(matcher.rankTrips(options,{destination:'印度'}).map(item=>item.trip.code),['DEL08BR261201A']);
   assert.deepEqual(matcher.rankTrips(options,{destination:'印尼'}).map(item=>item.trip.code),['SIN05BR261210B']);
   assert.deepEqual(matcher.rankTrips(options,{destination:'民丹島'}).map(item=>item.trip.code),['SIN05BR261210B']);
+});
+
+test('Italy destination recognizes common combined-tour names and Italian cities', () => {
+  const options = [
+    {code:'FCO10BR261105A',title:'經典義瑞十日',destination:'南歐',dates:'2026/11/05',price:'159,900元起'},
+    {code:'ZRH10BR261112B',title:'瑞士景觀列車十日',destination:'中西歐',dates:'2026/11/12',price:'179,900元起'},
+    {code:'VCE11CI261203C',title:'米蘭威尼斯深度十一日',destination:'南歐',dates:'2026/12/03',price:'189,900元起'}
+  ];
+  assert.deepEqual(
+    matcher.rankTrips(options,{destination:'義大利',month:[11,12],budget:200000}).map(item=>item.trip.code),
+    ['FCO10BR261105A','VCE11CI261203C']
+  );
 });
 
 test('senior-friendly preference raises relaxed itineraries and avoids stairs or slopes when requested', () => {
