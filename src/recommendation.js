@@ -91,9 +91,40 @@
     return values.some(date=>(!start||date>=start)&&(!end||date<=end));
   }
 
+  function airlineMatches(trip, wanted) {
+    const terms = String(wanted || '').toUpperCase().split(/[、,，\s]+/).map(value => value.trim()).filter(Boolean);
+    if (!terms.length) return true;
+    const code = String(trip.code || '').toUpperCase();
+    const codeMatch = code.match(/^[A-Z]{3}\d{2}([A-Z0-9]{2})/);
+    const tripAirlineCode = codeMatch ? codeMatch[1] : '';
+    const airlineName = String(trip.airline || '').toLowerCase();
+    const airlines = global.TravelAssistantParser && global.TravelAssistantParser.AIRLINES || {};
+    return terms.some(term => {
+      if (/^[A-Z0-9]{2}$/.test(term)) return tripAirlineCode === term;
+      const mappedCode = Object.keys(airlines).find(key => String(airlines[key]).toLowerCase().includes(term.toLowerCase()));
+      return airlineName.includes(term.toLowerCase()) || Boolean(mappedCode && tripAirlineCode === mappedCode);
+    });
+  }
+
+  function weekdayMatches(trip, wanted) {
+    const selected = (wanted || []).map(Number).filter(value => value >= 0 && value <= 6);
+    if (!selected.length || selected.length === 7) return true;
+    const dates = [...String(trip.dates || '').matchAll(/20\d{2}[\/.\-]\d{1,2}[\/.\-]\d{1,2}/g)]
+      .map(match => new Date(match[0].replace(/[.\/]/g, '-'))).filter(date => !Number.isNaN(date.getTime()));
+    if (!dates.length) {
+      const codeMatch = String(trip.code || '').toUpperCase().match(/^[A-Z]{3}\d{2}[A-Z0-9]{2}(\d{6})/);
+      if (codeMatch) {
+        const raw = codeMatch[1];
+        const date = new Date(`20${raw.slice(0,2)}-${raw.slice(2,4)}-${raw.slice(4,6)}`);
+        if (!Number.isNaN(date.getTime())) dates.push(date);
+      }
+    }
+    return dates.some(date => selected.includes(date.getDay()));
+  }
+
   function basicMatches(trip, needs) {
     const price = numberFrom(trip.price), budget = Math.max(0, Number(needs.budget) || 0), people = Math.max(1, Number(needs.people) || 1);
-    if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month) || !yearMatches(trip,needs.year) || !dateRangeMatches(trip,needs.dateFrom,needs.dateTo)) return false;
+    if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month) || !yearMatches(trip,needs.year) || !dateRangeMatches(trip,needs.dateFrom,needs.dateTo) || !airlineMatches(trip, needs.airline) || !weekdayMatches(trip, needs.weekdays)) return false;
     if (budget && (!price || price > budget)) return false;
     if (Number(trip.seats) > 0 && Number(trip.seats) < people) return false;
     const wantedDays = Number(needs.days) || 0, tripDays = Number((String(trip.days || '').match(/\d{1,2}/) || [])[0]) || 0;
@@ -165,12 +196,14 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
   if (!button) return;
   const keywordInput = $('matchKeywords');
+  if (keywordInput && !$('matchAirline')) keywordInput.insertAdjacentHTML('afterend', `<label style="margin-top:10px">航空公司或代碼（選填）</label><input id="matchAirline" placeholder="例如：BX、BR、CI，或釜山航空、長榮航空">`);
+  if (keywordInput && !$('matchWeekdays')) keywordInput.insertAdjacentHTML('afterend', `<div id="matchWeekdays" style="margin-top:10px"><label>每週出發日</label><div class="hint" style="padding:8px;display:flex;gap:14px;flex-wrap:wrap">${[['一',1],['二',2],['三',3],['四',4],['五',5],['六',6],['日',0]].map(([label,value])=>`<label style="font-weight:400"><input class="matchWeekday" type="checkbox" value="${value}" checked style="width:auto"> 週${label}</label>`).join('')}</div></div>`);
   if (keywordInput && !$('travelerType')) keywordInput.insertAdjacentHTML('afterend', `<div class="grid2" style="margin-top:10px"><div><label>旅客類型</label><select id="travelerType"><option value="">不限</option><option value="senior">長輩／銀髮</option><option value="family">親子家庭</option><option value="youth">年輕人體驗</option></select></div><div><label>行動與步調需求</label><div class="hint" style="padding:8px"><label style="font-weight:400"><input id="avoidSlopes" type="checkbox" style="width:auto"> 少爬坡／避免登山</label><label style="font-weight:400;margin-top:5px"><input id="avoidStairs" type="checkbox" style="width:auto"> 少樓梯／避免階梯</label><label style="font-weight:400;margin-top:5px"><input id="easyPace" type="checkbox" style="width:auto"> 步調輕鬆</label></div></div></div><div class="note">坡道、樓梯與無障礙資訊依官網文字初步判斷，報名前仍需向業務、景點及飯店確認。</div>`);
 
   function localDate(date) {
@@ -368,7 +401,8 @@
         } catch (error) { officialError = officialError || error.message; }
       }
     }
-    const exactNeeds = { people:$('matchPeople').value, destination:$('matchDestination').value,
+    const exactNeeds = { people:$('matchPeople').value, destination:$('matchDestination').value, airline:$('matchAirline').value,
+      weekdays:[...document.querySelectorAll('.matchWeekday:checked')].map(input=>Number(input.value)),
       budget:$('matchBudget').value, month:$('matchMonth').value, year:customerRequest.requestedYear, keywords:keywordWords.join('、'),
       days:customerRequest.days, departureAirport:(customerRequest.airports||[])[0], dateFrom:(customerRequest.dates||[])[0], dateTo:(customerRequest.dates||[])[1]||(customerRequest.dates||[])[0],
       avoidLowCost:(customerRequest.preferences||[]).includes('不要廉航'), avoidShopping:(customerRequest.preferences||[]).includes('不要購物站'), ...travelerNeeds };
