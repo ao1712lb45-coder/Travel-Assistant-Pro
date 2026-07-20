@@ -6,6 +6,10 @@
   if (!panel || panel.dataset.workspaceReady === 'true') return;
   const sections = Array.from(panel.querySelectorAll(':scope > .section'));
   if (sections.length < 10) return;
+  const crmSection = document.getElementById('crmSection');
+  const enterpriseSection = document.getElementById('enterpriseSection');
+  const assistantSection = document.getElementById('searchAssistantSection');
+  if (!crmSection || !enterpriseSection || !assistantSection) return;
 
   const views = [
     { id:'start', label:'匯入行程', icon:'1', sections:sections.slice(0,2), help:'輸入團號或網址，自動抓取並解析官方行程。' },
@@ -14,9 +18,9 @@
     { id:'check', label:'發布檢查', icon:'4', sections:[sections[4]], help:'發布前確認必要資料與網址格式。' },
     { id:'match', label:'客戶配對', icon:'5', sections:[sections[5]], help:'依地區、預算、月份與完整行程內容搜尋合適團體。' },
     { id:'database', label:'行程資料庫', icon:'6', sections:[sections[6]], help:'同步、搜尋、匯入與備份行程資料。' },
-    { id:'crm', label:'客戶 CRM', icon:'7', sections:[sections[7]], help:'記錄客戶喜好與避開條件，快速檢查行程適配度。' },
-    { id:'enterprise', label:'企業福委', icon:'8', sections:[sections[8]], help:'一次選取多個行程，產生企業戶專用的提案電子郵件。' },
-    { id:'assistant', label:'搜尋助手', icon:'9', sections:[sections[9]], help:'用一句話搜尋指定月份與景點，勾選行程後產生 LINE 社群文案。' }
+    { id:'crm', label:'客戶 CRM', icon:'7', sections:[crmSection], help:'記錄客戶喜好與避開條件，快速檢查行程適配度。' },
+    { id:'enterprise', label:'企業福委', icon:'8', sections:[enterpriseSection], help:'一次選取多個行程，產生企業戶專用的提案電子郵件。' },
+    { id:'assistant', label:'搜尋助手', icon:'9', sections:[assistantSection], help:'用一句話搜尋指定月份與景點，勾選行程後產生 LINE 社群文案。' }
   ];
 
   const rawTextSection = sections[1];
