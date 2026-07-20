@@ -135,10 +135,10 @@
       const status=byId('copyStatus'); status.textContent=`已產生：${STYLE_LABELS[result.style]}・版型 ${result.variant}`; status.className='status show ok';
       if (typeof globalThis.runCheck === 'function') globalThis.runCheck();
     };
-    byId('generateCopy').textContent='產生三平台文案'; byId('generateCopy').onclick=()=>render(false);
-    byId('regenLine').onclick=()=>render(true, 'line');
-    byId('regenFacebook').onclick=()=>render(true, 'facebook');
-    byId('regenThreads').textContent='換一篇 Threads'; byId('regenThreads').onclick=()=>render(true, 'threads');
+    byId('generateCopy').textContent='產生社群文案'; byId('generateCopy').onclick=()=>render(false);
+    byId('regenLine').textContent='換一篇文案'; byId('regenLine').onclick=()=>render(true, 'all');
+    if (byId('regenFacebook')) byId('regenFacebook').onclick=()=>render(true, 'facebook');
+    if (byId('regenThreads')) { byId('regenThreads').textContent='換一篇 Threads'; byId('regenThreads').onclick=()=>render(true, 'threads'); }
     styleSelect.onchange=()=>render(false); variantSelect.onchange=()=>render(false);
     ['url','code','days','mainTitle','subtitle','price','airline','dates','highlights','contact','line'].forEach(id=>byId(id).addEventListener('input',()=>render(false)));
     render(false);
