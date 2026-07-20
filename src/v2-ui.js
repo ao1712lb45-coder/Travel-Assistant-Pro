@@ -18,7 +18,7 @@
     @media(max-width:600px){header{padding:9px 14px}header p{font-size:11px}.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tab{width:100%;font-size:12px}.output{min-height:260px}}
   `;
   document.head.appendChild(style);
-  document.title = 'Travel Assistant Pro 2.0';
+  document.title = 'Travel Assistant Pro 2.1';
   const header = document.querySelector('header');
-  if (header) header.innerHTML = '<div class="v2-kicker">TRAVEL ASSISTANT PRO · 2.0</div><h1>旅行社智慧業務工作台</h1><p>官網行程擷取、完整內容搜尋、六種行銷素材、客戶需求配對與行程資料庫，一個網站完成日常工作。</p>';
+  if (header) header.innerHTML = '<div class="v2-kicker">TRAVEL ASSISTANT PRO · 2.1</div><h1>旅行社智慧業務工作台</h1><p>官網行程擷取、完整內容搜尋、六種行銷素材、客戶需求配對與行程資料庫，一個網站完成日常工作。</p>';
 })();

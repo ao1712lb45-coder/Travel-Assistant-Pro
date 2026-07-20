@@ -1,0 +1,6 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {analyzeChanges,isExpired,dashboardStats}=require('../src/business-enhancements.js');
+test('database dashboard detects new trips and price changes',()=>{const before=[{code:'A',price:'30,000元起',dates:'2027/01/01'},{code:'B',price:'40,000元起',dates:'2027/01/02'}],after=[{code:'A',price:'28,000元起',dates:'2027/01/01'},{code:'B',price:'42,000元起',dates:'2027/01/02'},{code:'C',price:'20,000元起',dates:'2027/02/01'}],r=analyzeChanges(before,after);assert.equal(r.added.length,1);assert.equal(r.priceDown.length,1);assert.equal(r.priceUp.length,1)});
+test('expired cleanup only marks trips whose known dates have all passed',()=>{const today=new Date(2026,6,20);assert.equal(isExpired({dates:'2026/07/19'},today),true);assert.equal(isExpired({dates:'2026/07/19、2026/07/21'},today),false);assert.equal(isExpired({dates:'待確認'},today),false)});
+test('dashboard summarizes active expired and low-seat trips',()=>{const stats=dashboardStats([{dates:'2026/07/19',seats:2},{dates:'2026/07/21',seats:5},{dates:'2027/01/01',seats:20}],new Date(2026,6,20));assert.deepEqual({total:stats.total,active:stats.active,expired:stats.expired,lowSeats:stats.lowSeats},{total:3,active:2,expired:1,lowSeats:2})});

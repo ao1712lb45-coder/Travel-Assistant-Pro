@@ -91,6 +91,16 @@ test('filters departures by selected weekdays using dates or tour code date', ()
   assert.equal(matcher.rankTrips(options, { weekdays:[0,1,2,3,4,5,6] }).length, 3);
 });
 
+test('supports multiple months price range seats red-eye exclusion and sorting', () => {
+  const options = [
+    {code:'TYO05BR261001A',title:'東京早班',dates:'2026/10/01',price:'35,000元起',seats:8,highlights:['早班機']},
+    {code:'TYO05BR261105B',title:'東京紅眼',dates:'2026/11/05',price:'29,000元起',seats:10,highlights:['凌晨 02:30 出發']},
+    {code:'TYO05BR261210C',title:'東京十二月',dates:'2026/12/10',price:'38,000元起',seats:3}
+  ];
+  const result=matcher.rankTrips(options,{month:[10,11],priceMin:30000,budget:40000,minSeats:4,avoidRedEye:true,sortBy:'price'});
+  assert.deepEqual(result.map(item=>item.trip.code),['TYO05BR261001A']);
+});
+
 test('keyword is a required filter when the user enters one', () => {
   const result = matcher.rankTrips(trips, { people:2, destination:'日本', budget:50000, keywords:'人妖秀' });
   assert.equal(result.length, 0);
