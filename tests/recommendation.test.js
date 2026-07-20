@@ -21,6 +21,12 @@ test('South Europe sync expands the broad category into searchable country names
   assert.deepEqual(matcher.REGION_SYNC_KEYWORDS['南歐'], ['義大利','西班牙','葡萄牙','希臘','克羅埃西亞','斯洛維尼亞','馬爾他']);
 });
 
+test('broad Europe and Middle East Africa sync buttons expand into country searches', () => {
+  assert.deepEqual(matcher.REGION_SYNC_KEYWORDS['中西歐'], ['法國','德國','瑞士','奧地利','荷蘭','比利時','英國','愛爾蘭']);
+  assert.deepEqual(matcher.REGION_SYNC_KEYWORDS['東歐'], ['捷克','匈牙利','波蘭','斯洛伐克','羅馬尼亞','保加利亞','巴爾幹']);
+  assert.deepEqual(matcher.REGION_SYNC_KEYWORDS['中東非洲'], ['土耳其','埃及','杜拜','阿聯酋','摩洛哥','南非','肯亞','約旦','以色列']);
+});
+
 const trips = [
   { code:'SPK06FD261105AB', title:'楓紅輕旅北海道６日', price:'32,800元起', dates:'10/16、11/5', airline:'泰國亞洲航空', highlights:['紅葉','溫泉'] },
   { code:'TYO05JX261111SM', title:'東京迪士尼５日', price:'39,900元起', dates:'11/11', airline:'星宇航空', highlights:['親子','迪士尼'] },
