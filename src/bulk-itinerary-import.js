@@ -15,6 +15,11 @@
     records.forEach(record=>{const index=merged.findIndex(item=>(record.code&&item.code===record.code)||(!record.code&&(item.title||item.mainTitle)===(record.title||record.mainTitle)));if(index>=0)merged[index]={...merged[index],...record};else merged.unshift(record)});
     return merged;
   }
+  function joinBatchMaterials(items){
+    const outputIds=['lineOut','fbOut','threadsOut','edmOut','committeeOut','videoOut'],joined={};
+    outputIds.forEach(id=>{joined[id]=items.map(({record,outputs},index)=>`━━━━━━━━ 第 ${index+1} 團｜${record.code} ━━━━━━━━\n\n${outputs[id]||''}`.trim()).join('\n\n\n')});
+    return joined;
+  }
   function withTimeout(promise,milliseconds,onTimeout){
     let timer;const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{onTimeout?.();const error=new Error(`等待超過 ${Math.round(milliseconds/1000)} 秒`);error.name='TimeoutError';reject(error)},milliseconds)});
     return Promise.race([promise,timeout]).finally(()=>clearTimeout(timer));
@@ -41,6 +46,7 @@
     toggle.onclick=()=>{const open=panel.style.display==='none';panel.style.display=open?'block':'none';toggle.textContent=open?'收起批次匯入':'批次匯入多團'};
     let activeControllers=new Set(),stopped=false;
     const applyRecord=record=>{const values={url:record.url,tourCodeInput:record.code,code:record.code,days:record.days,mainTitle:record.mainTitle||record.title,subtitle:record.subtitle,price:record.price,airline:record.airline,dates:record.dates,highlights:(record.highlights||[]).join('\n'),rawText:record.raw};Object.entries(values).forEach(([id,value])=>{const field=document.getElementById(id);if(field)field.value=value||''});document.getElementById('generateCopy')?.click()};
+    const generateBatchMaterials=records=>{const outputIds=['lineOut','fbOut','threadsOut','edmOut','committeeOut','videoOut'];const items=records.map(record=>{applyRecord(record);const outputs={};outputIds.forEach(id=>{outputs[id]=document.getElementById(id)?.value||''});return{record,outputs}}),joined=joinBatchMaterials(items);Object.entries(joined).forEach(([id,value])=>{const field=document.getElementById(id);if(field)field.value=value});return items.length};
     const renderImported=records=>{const box=document.getElementById('bulkImportedResults');box.innerHTML='';records.forEach(record=>{const row=document.createElement('div');row.className='dbitem';const info=document.createElement('div'),heading=document.createElement('b'),meta=document.createElement('div');heading.textContent=`${record.code}｜${record.title}`;meta.className='dbmeta';meta.textContent=[record.dates,record.price,record.airline].filter(Boolean).join('・');info.append(heading,meta);const button=document.createElement('button');button.type='button';button.textContent='載入並產生文案';button.onclick=()=>{applyRecord(record);document.getElementById('bulkImportProgress').textContent=`已載入 ${record.code} 並產生文案，請按「下一步」查看。`;document.getElementById('bulkImportProgress').className='status show ok'};row.append(info,button);box.appendChild(row)})};
     document.getElementById('stopBulkImport').onclick=()=>{stopped=true;activeControllers.forEach(controller=>controller.abort())};
     document.getElementById('clearBulkImport').onclick=()=>{document.getElementById('bulkItineraryInput').value='';document.getElementById('bulkImportProgress').className='status';document.getElementById('bulkProgressBox').style.display='none';document.getElementById('bulkImportedResults').innerHTML=''};
@@ -60,11 +66,11 @@
       let database=[];try{database=JSON.parse(localStorage.getItem('travelV10Db')||'[]')}catch(_){}
       localStorage.setItem('travelV10Db',JSON.stringify(mergeRecords(database,saved)));
       progressLabel.textContent=stopped?`已停止，共處理 ${completed} / ${entries.length} 團`:`匯入完成，共處理 ${entries.length} 團`;status.textContent=`${stopped?'批次匯入已停止':'批次匯入完成'}：成功 ${saved.length} 團，失敗 ${failed.length} 團。${failed.length?' 失敗項目：'+failed.join('；'):''}`;status.className='status show '+(failed.length||stopped?'warn':'ok');button.disabled=false;stopButton.disabled=true;
-      renderImported(saved);if(saved.length){applyRecord(saved[0]);status.textContent+=` 已自動載入 ${saved[0].code} 並產生文案，請按「下一步」查看。`}
+      renderImported(saved);if(saved.length){const generated=generateBatchMaterials(saved);status.textContent+=` 已產生 ${generated} 個行程文案，請按「下一步」查看行銷素材。`}
       setTimeout(()=>global.renderDb?.(),0);
     };
     singleButton.addEventListener('click',event=>{const codes=[codeInput?.value,...document.querySelectorAll('.extra-tour-code')].map(item=>clean(item&&item.value!==undefined?item.value:item)).filter(Boolean);if(codes.length<=1)return;event.preventDefault();event.stopImmediatePropagation();document.getElementById('bulkItineraryInput').value=codes.join('\n');panel.style.display='block';toggle.textContent='收起批次匯入';document.getElementById('runBulkImport').click()},true);
   }
   if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install()}
-  return {parseBulkEntries,recordFromResult,mergeRecords,withTimeout,validateParsedResult,install};
+  return {parseBulkEntries,recordFromResult,mergeRecords,joinBatchMaterials,withTimeout,validateParsedResult,install};
 });
