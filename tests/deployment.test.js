@@ -35,6 +35,7 @@ test('online deployment protects the app but leaves health checks available', as
     const page = await authorized.text();
     assert.match(page, /marketing-suite\.js/);
     assert.match(page, /enterprise-proposal\.js/);
+    assert.match(page, /bulk-itinerary-import\.js/);
     assert.match(page, /crm\.js/);
     assert.match(page, /v2-ui\.js/);
     assert.ok(page.indexOf('crm.js') < page.indexOf('app-shell.js'), 'CRM must load before the workspace reads its sections');
