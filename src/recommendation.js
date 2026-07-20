@@ -148,6 +148,8 @@
     if (Number(needs.minSeats) > 0 && (!Number(trip.seats) || Number(trip.seats) < Number(needs.minSeats))) return false;
     const wantedDays = Number(needs.days) || 0, tripDays = Number((String(trip.days || '').match(/\d{1,2}/) || [])[0]) || 0;
     if (wantedDays && tripDays && wantedDays !== tripDays) return false;
+    if (Number(needs.minDays) > 0 && tripDays && tripDays < Number(needs.minDays)) return false;
+    if (Number(needs.maxDays) > 0 && tripDays && tripDays > Number(needs.maxDays)) return false;
     const airport = String(needs.departureAirport || '').trim(), knownAirport = String(trip.departureCity || '').trim();
     if (airport && knownAirport && !knownAirport.includes(airport)) return false;
     if (needs.avoidRedEye && /紅眼|凌晨|00:\d{2}|01:\d{2}|02:\d{2}|03:\d{2}|04:\d{2}/.test(tripText(trip))) return false;
@@ -462,7 +464,8 @@
       weekdays:[...document.querySelectorAll('.matchWeekday:checked')].map(input=>Number(input.value)),
       budget:$('matchBudget').value, priceMin:$('matchPriceMin').value, minSeats:$('matchMinSeats').value,
       month:selectedMonths.length ? selectedMonths : $('matchMonth').value, year:customerRequest.requestedYear, keywords:keywordWords.join('、'),
-      days:$('matchDays').value || customerRequest.days, departureAirport:$('matchAirport').value || (customerRequest.airports||[])[0], dateFrom:(customerRequest.dates||[])[0], dateTo:(customerRequest.dates||[])[1]||(customerRequest.dates||[])[0], sortBy:$('matchSort').value,
+      days:$('matchDays').value || customerRequest.days, minDays:customerRequest.minDays, maxDays:customerRequest.maxDays,
+      departureAirport:$('matchAirport').value || (customerRequest.airports||[])[0], dateFrom:(customerRequest.dates||[])[0], dateTo:(customerRequest.dates||[])[1]||(customerRequest.dates||[])[0], sortBy:$('matchSort').value,
       avoidLowCost:$('matchAvoidLowCost').checked || (customerRequest.preferences||[]).includes('不要廉航'), avoidShopping:$('matchAvoidShopping').checked || (customerRequest.preferences||[]).includes('不要購物站'), avoidRedEye:$('matchAvoidRedEye').checked, ...travelerNeeds };
     let results = rankTrips(trips, exactNeeds), relaxed = '';
     if (!results.length) {

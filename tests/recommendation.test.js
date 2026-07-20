@@ -112,6 +112,11 @@ test('supports multiple months price range seats red-eye exclusion and sorting',
   assert.deepEqual(result.map(item=>item.trip.code),['TYO05BR261001A']);
 });
 
+test('filters trips by a minimum and maximum day range',()=>{
+  const options=[{code:'TYO03BR261001A',days:'3天'},{code:'TYO04BR261001B',days:'4天'},{code:'TYO10BR261001C',days:'10天'},{code:'TYO11BR261001D',days:'11天'}];
+  assert.deepEqual(matcher.rankTrips(options,{minDays:4,maxDays:10}).map(item=>item.trip.code).sort(),['TYO04BR261001B','TYO10BR261001C']);
+});
+
 test('keyword is a required filter when the user enters one', () => {
   const result = matcher.rankTrips(trips, { people:2, destination:'日本', budget:50000, keywords:'人妖秀' });
   assert.equal(result.length, 0);

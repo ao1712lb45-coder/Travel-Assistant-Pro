@@ -62,7 +62,7 @@
     const fullDatePattern=/(20\d{2})[\/.-](\d{1,2})[\/.-](\d{1,2})/g;
     const fullDates = [...text.matchAll(fullDatePattern)].map(m => `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`);
     const shortDateSource=text.replace(fullDatePattern,' ');
-    const shortDates = [...shortDateSource.matchAll(/(?<!\d)(\d{1,2})[\/.-](\d{1,2})(?!\d)/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
+    const shortDates = [...shortDateSource.matchAll(/(?<!\d)(\d{1,2})[\/.-](\d{1,2})(?!\d|\s*(?:天|日))/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
     const chineseDates = [...text.matchAll(/(\d{1,2})月(\d{1,2})[日號]?/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
     let dates = [...new Set([...fullDates,...shortDates,...chineseDates])].slice(0,2);
     const relativeMonth = text.match(/(今年|明年|後年)?\s*([一二兩三四五六七八九十\d]{1,3})月(?:底|中|初|份)?/);
@@ -86,14 +86,17 @@
     const totalBudget = /總預算|全部預算|一家預算/.test(text);
     const chineseBudget = text.match(/([一二兩三四五六七八九十]+)\s*萬/);
     const budget = budgetMatch ? moneyNumber(budgetMatch[1]) : chineseBudget ? chineseNumber(chineseBudget[1]) * 10000 : null;
-    const dayMatch = text.match(/(\d{1,2})\s*(?:天|日)(?!期)/);
+    const dayRangeMatch = text.match(/(\d{1,2})\s*(?:-|~|～|至|到)\s*(\d{1,2})\s*(?:天|日)(?!期)/);
+    const dayMatch = dayRangeMatch ? null : text.match(/(\d{1,2})\s*(?:天|日)(?!期)/);
     const travelType = /機加酒|機票加酒店|機票\+飯店/.test(text) ? '機加酒' : /自由行/.test(text) ? '自由行' : /跟團|團體旅遊/.test(text) ? '跟團' : '';
     const preferences = PREFS.filter(([,pattern]) => pattern.test(text)).map(([label]) => label);
     const knownPrefs = new Set(preferences);
     const sights = text.split(/[，,、。\n]/).map(clean).filter(part => /想去|一定要|指定|希望有/.test(part) && part.length <= 40);
     const result = { raw:text, dates, month:monthOnly || (dates[0] ? +dates[0].slice(5,7) : null), requestedYear, airports,
       destination:destinations[0] || '', alternatives:destinations.slice(1), adults, children, infants, totalPeople, budget,
-      budgetType:totalBudget ? 'total' : 'perPerson', days:dayMatch ? +dayMatch[1] : null, travelType, preferences:[...knownPrefs], sights, holiday:holiday&&holiday.name||'' };
+      budgetType:totalBudget ? 'total' : 'perPerson', days:dayMatch ? +dayMatch[1] : null,
+      minDays:dayRangeMatch ? Math.min(+dayRangeMatch[1],+dayRangeMatch[2]) : null, maxDays:dayRangeMatch ? Math.max(+dayRangeMatch[1],+dayRangeMatch[2]) : null,
+      travelType, preferences:[...knownPrefs], sights, holiday:holiday&&holiday.name||'' };
     result.missing = missingFields(result);
     return result;
   }
@@ -102,7 +105,7 @@
     if (!request.dates.length && !request.month) missing.push('希望出發日期或日期範圍');
     if (!request.airports.length) missing.push('出發機場');
     if (!request.destination) missing.push('目的地或可接受的備選地點');
-    if (!request.adults) missing.push('大人、兒童與嬰兒人數');
+    if (!request.totalPeople && !request.adults) missing.push('旅客總人數');
     if (!request.budget) missing.push('每人或總預算');
     if (!request.days) missing.push('希望旅遊天數');
     if (!request.travelType) missing.push('跟團、自由行或機加酒');
@@ -140,7 +143,7 @@
     section.insertBefore(box,intro);
     const byId=id=>document.getElementById(id); let parsed=null, currentResults=[];
     const value=(label,v)=>`<div><b>${label}</b>：${v||'未提供'}</div>`;
-    byId('parseCustomerLine').onclick=()=>{parsed=parseCustomerMessage(byId('customerLineRequest').value);const dateSummary=parsed.dates.join('～')||(parsed.month?`${parsed.requestedYear?parsed.requestedYear+' 年 ':''}${parsed.month} 月`:'');const peopleSummary=parsed.adults?`${parsed.adults}大 ${parsed.children}小 ${parsed.infants}嬰`:(parsed.totalPeople?`總共 ${parsed.totalPeople} 位（組成待確認）`:'');byId('requestSummary').innerHTML=[value('日期',dateSummary),value('機場',parsed.airports.join('、')),value('目的地',[parsed.destination,...parsed.alternatives].filter(Boolean).join('／')),value('人數',peopleSummary),value('預算',parsed.budget?`${parsed.budgetType==='total'?'總預算':'每人'} ${parsed.budget.toLocaleString('zh-TW')} 元`:''),value('天數',parsed.days?parsed.days+'天':''),value('類型',parsed.travelType),value('偏好',parsed.preferences.join('、')),`<div style="margin-top:6px;color:${parsed.missing.length?'#a85b00':'#087a55'}"><b>${parsed.missing.length?'仍需詢問':'資料狀態'}</b>：${parsed.missing.join('、')||'主要條件已齊全'}</div>`].join('');};
+    byId('parseCustomerLine').onclick=()=>{parsed=parseCustomerMessage(byId('customerLineRequest').value);const dateSummary=parsed.dates.join('～')||(parsed.month?`${parsed.requestedYear?parsed.requestedYear+' 年 ':''}${parsed.month} 月`:'');const peopleSummary=parsed.adults?`${parsed.adults}大 ${parsed.children}小 ${parsed.infants}嬰`:(parsed.totalPeople?`總共 ${parsed.totalPeople} 位`:'');byId('requestSummary').innerHTML=[value('日期',dateSummary),value('機場',parsed.airports.join('、')),value('目的地',[parsed.destination,...parsed.alternatives].filter(Boolean).join('／')),value('人數',peopleSummary),value('預算',parsed.budget?`${parsed.budgetType==='total'?'總預算':'每人'} ${parsed.budget.toLocaleString('zh-TW')} 元`:''),value('天數',parsed.minDays?`${parsed.minDays}～${parsed.maxDays}天`:(parsed.days?parsed.days+'天':'')),value('類型',parsed.travelType),value('偏好',parsed.preferences.join('、')),`<div style="margin-top:6px;color:${parsed.missing.length?'#a85b00':'#087a55'}"><b>${parsed.missing.length?'仍需詢問':'資料狀態'}</b>：${parsed.missing.join('、')||'主要條件已齊全'}</div>`].join('');};
     byId('applyCustomerSearch').onclick=()=>{if(!parsed)byId('parseCustomerLine').click();if(!parsed)return;byId('matchPeople').value=parsed.totalPeople||2;byId('matchDestination').value=parsed.destination;const heads=(parsed.adults||0)+(parsed.children||0)||parsed.totalPeople||1;byId('matchBudget').value=parsed.budgetType==='total'?Math.round((parsed.budget||0)/heads):(parsed.budget||'');byId('matchMonth').value=parsed.month||'';byId('matchKeywords').value=[...parsed.sights,...parsed.preferences.filter(x=>!['跟團','自由行','機加酒'].includes(x))].join('、');if(parsed.preferences.includes('長輩適合'))byId('travelerType').value='senior';if(parsed.preferences.includes('親子友善'))byId('travelerType').value='family';if(parsed.preferences.includes('年輕人體驗'))byId('travelerType').value='youth';byId('avoidSlopes').checked=parsed.preferences.includes('少爬坡');byId('avoidStairs').checked=parsed.preferences.includes('少樓梯');run.click();};
     byId('applyCustomerSearch').addEventListener('click',()=>{if(parsed)run.dataset.customerRequest=JSON.stringify(parsed);},true);
     const copy=id=>navigator.clipboard.writeText(byId(id).value).catch(()=>{});
