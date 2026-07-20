@@ -60,6 +60,28 @@ test('date range airport airline and shopping constraints are applied without gu
   assert.deepEqual(result.map(item=>item.trip.code),['TYO05JX261105BB']);
 });
 
+test('filters customer matches by airline code or airline name', () => {
+  const options = [
+    { code:'PUS05BX261002J', title:'釜山五日', airline:'釜山航空', dates:'2026/10/02', price:'29,900元起' },
+    { code:'PUS05BR261003J', title:'釜山五日', airline:'長榮航空', dates:'2026/10/03', price:'31,900元起' },
+    { code:'PUS05CI261004J', title:'釜山五日', airline:'中華航空', dates:'2026/10/04', price:'30,900元起' }
+  ];
+  assert.deepEqual(matcher.rankTrips(options, { airline:'BX' }).map(item => item.trip.code), ['PUS05BX261002J']);
+  assert.deepEqual(matcher.rankTrips(options, { airline:'BR CI' }).map(item => item.trip.code).sort(), ['PUS05BR261003J','PUS05CI261004J']);
+  assert.deepEqual(matcher.rankTrips(options, { airline:'釜山航空' }).map(item => item.trip.code), ['PUS05BX261002J']);
+});
+
+test('filters departures by selected weekdays using dates or tour code date', () => {
+  const options = [
+    { code:'PUS05BX261002J', title:'週五釜山', dates:'2026/10/02', price:'29,900元起' },
+    { code:'PUS05BX261003J', title:'週六釜山', dates:'2026/10/03', price:'30,900元起' },
+    { code:'PUS05BX261004J', title:'週日釜山', dates:'', price:'31,900元起' }
+  ];
+  assert.deepEqual(matcher.rankTrips(options, { weekdays:[5] }).map(item => item.trip.code), ['PUS05BX261002J']);
+  assert.deepEqual(matcher.rankTrips(options, { weekdays:[6,0] }).map(item => item.trip.code).sort(), ['PUS05BX261003J','PUS05BX261004J']);
+  assert.equal(matcher.rankTrips(options, { weekdays:[0,1,2,3,4,5,6] }).length, 3);
+});
+
 test('keyword is a required filter when the user enters one', () => {
   const result = matcher.rankTrips(trips, { people:2, destination:'日本', budget:50000, keywords:'人妖秀' });
   assert.equal(result.length, 0);
