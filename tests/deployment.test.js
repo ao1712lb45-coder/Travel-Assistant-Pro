@@ -59,6 +59,11 @@ test('online deployment protects the app but leaves health checks available', as
     const workbench = await fetch(`${base}/src/sales-workbench.js`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(workbench.status, 200);
     assert.match(await workbench.text(), /parseCustomerMessage/);
+    const shell = await fetch(`${base}/src/app-shell.js`, { headers:{ authorization:basic('team','secret') } });
+    assert.equal(shell.status, 200);
+    const shellScript = await shell.text();
+    assert.match(shellScript, /sections\.length < 9/);
+    assert.match(shellScript, /DOMContentLoaded', install/);
     assert.equal(authorized.headers.get('x-frame-options'), 'DENY');
   } finally { await new Promise(resolve => server.close(resolve)); }
 });

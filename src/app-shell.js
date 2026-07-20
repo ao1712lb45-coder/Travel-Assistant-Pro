@@ -1,10 +1,11 @@
 /* Travel Assistant Pro 1.1.0 - friendly workspace shell */
 (function () {
   'use strict';
+  function install() {
   const panel = document.querySelector('.wrap > .panel');
   if (!panel || panel.dataset.workspaceReady === 'true') return;
   const sections = Array.from(panel.querySelectorAll(':scope > .section'));
-  if (sections.length < 7) return;
+  if (sections.length < 9) return;
 
   const views = [
     { id:'start', label:'匯入行程', icon:'1', sections:sections.slice(0,2), help:'輸入團號或網址，自動抓取並解析官方行程。' },
@@ -59,4 +60,7 @@
   views.forEach(view=>{const desktop=buttonFor(view,false),mobile=buttonFor(view,true);desktopButtons.push(desktop);mobileButtons.push(mobile);nav.appendChild(desktop);mobileNav.appendChild(mobile)});
   function showView(index,updateHash=true){current=Math.max(0,Math.min(index,views.length-1));sections.forEach(section=>section.classList.remove('workspace-visible'));views[current].sections.forEach(section=>section.classList.add('workspace-visible'));[...desktopButtons,...mobileButtons].forEach(button=>{const active=button.dataset.view===views[current].id;button.classList.toggle('active',active);button.setAttribute('aria-current',active?'page':'false')});document.getElementById('workspaceTitle').textContent=views[current].label;document.getElementById('workspaceHelp').textContent=views[current].help;document.getElementById('workspaceProgress').textContent=(current+1)+' / '+views.length;document.getElementById('workspacePrev').disabled=current===0;document.getElementById('workspaceNext').textContent=current===views.length-1?'回到開始':'下一步 →';if(updateHash)history.replaceState(null,'','#'+views[current].id);window.scrollTo({top:0,behavior:'smooth'})}
   document.getElementById('workspacePrev').addEventListener('click',()=>showView(current-1));document.getElementById('workspaceNext').addEventListener('click',()=>showView(current===views.length-1?0:current+1));const hashIndex=views.findIndex(view=>'#'+view.id===location.hash);showView(hashIndex>=0?hashIndex:0,false);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
+  else install();
 })();
