@@ -15,6 +15,14 @@
     records.forEach(record=>{const index=merged.findIndex(item=>(record.code&&item.code===record.code)||(!record.code&&(item.title||item.mainTitle)===(record.title||record.mainTitle)));if(index>=0)merged[index]={...merged[index],...record};else merged.unshift(record)});
     return merged;
   }
+  function withTimeout(promise,milliseconds,onTimeout){
+    let timer;const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{onTimeout?.();const error=new Error(`等待超過 ${Math.round(milliseconds/1000)} 秒`);error.name='TimeoutError';reject(error)},milliseconds)});
+    return Promise.race([promise,timeout]).finally(()=>clearTimeout(timer));
+  }
+  function validateParsedResult(result){
+    const missing=[];if(!result?.confidence?.title)missing.push('行程名稱');if(!result?.confidence?.price)missing.push('售價');if(!result?.confidence?.dates)missing.push('出發日期');
+    if(missing.length)throw new Error(`官網尚未提供完整行程（缺少${missing.join('、')}）`);return result;
+  }
   function install(){
     if(typeof document==='undefined'||document.getElementById('bulkImportPanel'))return;
     const singleButton=document.getElementById('fetchBesttour'),url=document.getElementById('url');if(!singleButton||!url)return;
@@ -39,8 +47,8 @@
       if(!entries.length){status.textContent='請至少貼上一個有效團號或行程網址。';status.className='status show warn';return}
       button.disabled=true;stopButton.disabled=false;stopped=false;progressBox.style.display='block';progressBar.value=0;progressPercent.textContent='0%';const saved=[],failed=[];
       for(let index=0;index<entries.length;index++){
-        if(stopped)break;const started=Date.now();progressLabel.textContent=`正在匯入 ${index+1} / ${entries.length}：${entries[index]}（等待 0 秒）`;status.textContent=`已完成 ${index} / ${entries.length} 團`;status.className='status show warn';const ticker=setInterval(()=>{progressLabel.textContent=`正在匯入 ${index+1} / ${entries.length}：${entries[index]}（等待 ${Math.floor((Date.now()-started)/1000)} 秒）`},1000);activeController=new AbortController();const timeout=setTimeout(()=>activeController.abort(),60000);
-        try{const response=await fetch('/api/itinerary/fetch?url='+encodeURIComponent(entries[index]),{headers:{accept:'application/json'},signal:activeController.signal});const payload=await response.json();if(!response.ok||!payload.ok)throw new Error(payload.error?.message||'官網讀取失敗');if(!global.TravelAssistantParser)throw new Error('解析模組尚未載入');const result=global.TravelAssistantParser.parse({url:payload.data.finalUrl,text:payload.data.text});if(!result.code||result.code!==payload.data.requestedCode)throw new Error('團號不一致');saved.push(recordFromResult(result,payload));}catch(error){failed.push(`${entries[index]}：${stopped?'已停止':error.name==='AbortError'?'等待超過 60 秒':error.message}`)}finally{clearInterval(ticker);clearTimeout(timeout);activeController=null}
+        if(stopped)break;const started=Date.now();progressLabel.textContent=`正在匯入 ${index+1} / ${entries.length}：${entries[index]}（等待 0 / 20 秒）`;status.textContent=`已完成 ${index} / ${entries.length} 團`;status.className='status show warn';const ticker=setInterval(()=>{progressLabel.textContent=`正在匯入 ${index+1} / ${entries.length}：${entries[index]}（等待 ${Math.min(20,Math.floor((Date.now()-started)/1000))} / 20 秒）`},1000);activeController=new AbortController();
+        try{const task=(async()=>{const response=await fetch('/api/itinerary/fetch?url='+encodeURIComponent(entries[index]),{headers:{accept:'application/json'},signal:activeController.signal});const payload=await response.json();if(!response.ok||!payload.ok)throw new Error(payload.error?.message||'官網讀取失敗');if(!global.TravelAssistantParser)throw new Error('解析模組尚未載入');const result=validateParsedResult(global.TravelAssistantParser.parse({url:payload.data.finalUrl,text:payload.data.text}));if(!result.code||result.code!==payload.data.requestedCode)throw new Error('團號不一致');return recordFromResult(result,payload)})();saved.push(await withTimeout(task,20000,()=>activeController?.abort()));}catch(error){failed.push(`${entries[index]}：${stopped?'已停止':error.name==='AbortError'||error.name==='TimeoutError'?'等待超過 20 秒':error.message}`)}finally{clearInterval(ticker);activeController=null}
         const percent=Math.round(((index+1)/entries.length)*100);progressBar.value=percent;progressPercent.textContent=`${percent}%`;
       }
       let database=[];try{database=JSON.parse(localStorage.getItem('travelV10Db')||'[]')}catch(_){}
@@ -50,5 +58,5 @@
     singleButton.addEventListener('click',event=>{const codes=[codeInput?.value,...document.querySelectorAll('.extra-tour-code')].map(item=>clean(item&&item.value!==undefined?item.value:item)).filter(Boolean);if(codes.length<=1)return;event.preventDefault();event.stopImmediatePropagation();document.getElementById('bulkItineraryInput').value=codes.join('\n');panel.style.display='block';toggle.textContent='收起批次匯入';document.getElementById('runBulkImport').click()},true);
   }
   if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install()}
-  return {parseBulkEntries,recordFromResult,mergeRecords,install};
+  return {parseBulkEntries,recordFromResult,mergeRecords,withTimeout,validateParsedResult,install};
 });
