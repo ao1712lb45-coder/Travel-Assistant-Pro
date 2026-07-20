@@ -1,5 +1,5 @@
 /* Travel Assistant Pro 2.2 - bulk itinerary import */
-(function(global,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;global.TravelBulkItineraryImport=api;})(typeof window!=='undefined'?window:globalThis,function(){
+(function(global,factory){const api=factory(global);if(typeof module==='object'&&module.exports)module.exports=api;global.TravelBulkItineraryImport=api;})(typeof window!=='undefined'?window:globalThis,function(global){
   'use strict';
   const clean=value=>String(value||'').trim();
   function parseBulkEntries(value){
