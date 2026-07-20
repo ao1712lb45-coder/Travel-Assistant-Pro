@@ -79,8 +79,9 @@
   }
 
   function monthMatches(trip, month) {
-    if (!month) return true;
-    return new RegExp(`(?:^|[^0-9])0?${Number(month)}[\\/]`).test(String(trip.dates || ''));
+    const months = (Array.isArray(month) ? month : [month]).map(Number).filter(Boolean);
+    if (!months.length) return true;
+    return months.some(value => new RegExp(`(?:^|[^0-9])0?${value}[\\/]`).test(String(trip.dates || '')));
   }
 
   function yearMatches(trip, year) {
@@ -132,11 +133,14 @@
     const price = numberFrom(trip.price), budget = Math.max(0, Number(needs.budget) || 0), people = Math.max(1, Number(needs.people) || 1);
     if (!destinationMatches(trip, needs.destination) || !monthMatches(trip, needs.month) || !yearMatches(trip,needs.year) || !dateRangeMatches(trip,needs.dateFrom,needs.dateTo) || !airlineMatches(trip, needs.airline) || !weekdayMatches(trip, needs.weekdays)) return false;
     if (budget && (!price || price > budget)) return false;
+    if (Number(needs.priceMin) > 0 && (!price || price < Number(needs.priceMin))) return false;
     if (Number(trip.seats) > 0 && Number(trip.seats) < people) return false;
+    if (Number(needs.minSeats) > 0 && (!Number(trip.seats) || Number(trip.seats) < Number(needs.minSeats))) return false;
     const wantedDays = Number(needs.days) || 0, tripDays = Number((String(trip.days || '').match(/\d{1,2}/) || [])[0]) || 0;
     if (wantedDays && tripDays && wantedDays !== tripDays) return false;
     const airport = String(needs.departureAirport || '').trim(), knownAirport = String(trip.departureCity || '').trim();
     if (airport && knownAirport && !knownAirport.includes(airport)) return false;
+    if (needs.avoidRedEye && /紅眼|凌晨|00:\d{2}|01:\d{2}|02:\d{2}|03:\d{2}|04:\d{2}/.test(tripText(trip))) return false;
     return true;
   }
 
@@ -175,7 +179,7 @@
       if (needs.avoidShopping) reasons.push('目前資料未顯示購物站，仍需人工確認完整行程');
       if (!reasons.length) reasons.push('符合目前設定的基本條件');
       return { trip, price, people, total: price ? price * people : 0, score, reasons };
-    }).filter(Boolean).sort((a, b) => b.score - a.score || a.price - b.price).slice(0, 8);
+    }).filter(Boolean).sort((a, b) => needs.sortBy === 'price' ? a.price - b.price : needs.sortBy === 'date' ? String(a.trip.dates||'').localeCompare(String(b.trip.dates||'')) : b.score - a.score || a.price - b.price).slice(0, 8);
   }
 
   function mergeOfficialTrip(oldTrip, officialTrip) {
@@ -209,6 +213,9 @@
   if (!button) return;
   const keywordInput = $('matchKeywords');
   if (keywordInput && !$('matchAirline')) keywordInput.insertAdjacentHTML('afterend', `<label style="margin-top:10px">航空公司或代碼（選填）</label><input id="matchAirline" placeholder="例如：BX、BR、CI，或釜山航空、長榮航空">`);
+  if (keywordInput && !$('advancedMatchFilters')) keywordInput.insertAdjacentHTML('afterend', `<details id="advancedMatchFilters" style="margin-top:10px" class="hint"><summary style="cursor:pointer;font-weight:800">更多篩選條件</summary><div class="grid3" style="margin-top:10px"><div><label>最低價格</label><input id="matchPriceMin" type="number" min="0" step="1000" placeholder="例如 20000"></div><div><label>至少剩餘機位</label><input id="matchMinSeats" type="number" min="0" placeholder="例如 4"></div><div><label>行程天數</label><input id="matchDays" type="number" min="1" max="30" placeholder="例如 5"></div></div><div class="grid2" style="margin-top:10px"><div><label>出發機場</label><select id="matchAirport"><option value="">不限</option><option>桃園</option><option>台中</option><option>高雄</option></select></div><div><label>排序</label><select id="matchSort"><option value="score">符合度優先</option><option value="price">價格低到高</option><option value="date">出發日優先</option></select></div></div><div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px"><label style="font-weight:400"><input id="matchAvoidLowCost" type="checkbox" style="width:auto"> 排除廉航</label><label style="font-weight:400"><input id="matchAvoidShopping" type="checkbox" style="width:auto"> 排除購物站</label><label style="font-weight:400"><input id="matchAvoidRedEye" type="checkbox" style="width:auto"> 排除紅眼航班</label></div></details>`);
+  const monthSelect = $('matchMonth');
+  if (monthSelect && !$('matchMonths')) monthSelect.insertAdjacentHTML('afterend', `<div id="matchMonths" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">${Array.from({length:12},(_,index)=>`<label style="font-weight:400;font-size:12px"><input class="matchMonthChoice" type="checkbox" value="${index+1}" style="width:auto"> ${index+1}月</label>`).join('')}</div>`);
   if (keywordInput && !$('matchWeekdays')) keywordInput.insertAdjacentHTML('afterend', `<div id="matchWeekdays" style="margin-top:10px"><label>每週出發日</label><div class="hint" style="padding:8px;display:flex;gap:14px;flex-wrap:wrap">${[['一',1],['二',2],['三',3],['四',4],['五',5],['六',6],['日',0]].map(([label,value])=>`<label style="font-weight:400"><input class="matchWeekday" type="checkbox" value="${value}" checked style="width:auto"> 週${label}</label>`).join('')}</div></div>`);
   if (keywordInput && !$('travelerType')) keywordInput.insertAdjacentHTML('afterend', `<div class="grid2" style="margin-top:10px"><div><label>旅客類型</label><select id="travelerType"><option value="">不限</option><option value="senior">長輩／銀髮</option><option value="family">親子家庭</option><option value="youth">年輕人體驗</option></select></div><div><label>行動與步調需求</label><div class="hint" style="padding:8px"><label style="font-weight:400"><input id="avoidSlopes" type="checkbox" style="width:auto"> 少爬坡／避免登山</label><label style="font-weight:400;margin-top:5px"><input id="avoidStairs" type="checkbox" style="width:auto"> 少樓梯／避免階梯</label><label style="font-weight:400;margin-top:5px"><input id="easyPace" type="checkbox" style="width:auto"> 步調輕鬆</label></div></div></div><div class="note">坡道、樓梯與無障礙資訊依官網文字初步判斷，報名前仍需向業務、景點及飯店確認。</div>`);
 
@@ -437,11 +444,13 @@
         } catch (error) { officialError = officialError || error.message; }
       }
     }
+    const selectedMonths=[...document.querySelectorAll('.matchMonthChoice:checked')].map(input=>Number(input.value));
     const exactNeeds = { people:$('matchPeople').value, destination:$('matchDestination').value, airline:$('matchAirline').value,
       weekdays:[...document.querySelectorAll('.matchWeekday:checked')].map(input=>Number(input.value)),
-      budget:$('matchBudget').value, month:$('matchMonth').value, year:customerRequest.requestedYear, keywords:keywordWords.join('、'),
-      days:customerRequest.days, departureAirport:(customerRequest.airports||[])[0], dateFrom:(customerRequest.dates||[])[0], dateTo:(customerRequest.dates||[])[1]||(customerRequest.dates||[])[0],
-      avoidLowCost:(customerRequest.preferences||[]).includes('不要廉航'), avoidShopping:(customerRequest.preferences||[]).includes('不要購物站'), ...travelerNeeds };
+      budget:$('matchBudget').value, priceMin:$('matchPriceMin').value, minSeats:$('matchMinSeats').value,
+      month:selectedMonths.length ? selectedMonths : $('matchMonth').value, year:customerRequest.requestedYear, keywords:keywordWords.join('、'),
+      days:$('matchDays').value || customerRequest.days, departureAirport:$('matchAirport').value || (customerRequest.airports||[])[0], dateFrom:(customerRequest.dates||[])[0], dateTo:(customerRequest.dates||[])[1]||(customerRequest.dates||[])[0], sortBy:$('matchSort').value,
+      avoidLowCost:$('matchAvoidLowCost').checked || (customerRequest.preferences||[]).includes('不要廉航'), avoidShopping:$('matchAvoidShopping').checked || (customerRequest.preferences||[]).includes('不要購物站'), avoidRedEye:$('matchAvoidRedEye').checked, ...travelerNeeds };
     let results = rankTrips(trips, exactNeeds), relaxed = '';
     if (!results.length) {
       const alternatives = [

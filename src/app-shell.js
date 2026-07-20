@@ -36,7 +36,7 @@
   const workspace=document.createElement('div'),nav=document.createElement('aside'),main=document.createElement('main'),toolbar=document.createElement('div'),actions=document.createElement('div'),mobileNav=document.createElement('nav');
   workspace.className='workspace';nav.className='workspace-nav';main.className='workspace-main';toolbar.className='workspace-toolbar';actions.className='workspace-actions';mobileNav.className='mobile-nav';
   nav.setAttribute('aria-label','主要功能');mobileNav.setAttribute('aria-label','手機功能列');
-  nav.innerHTML='<div class="workspace-brand"><strong>V2.0 工作流程</strong><span>完成行程解析、行銷素材、客戶配對與資料庫管理。</span></div>';
+  nav.innerHTML='<div class="workspace-brand"><strong>V2.1 工作流程</strong><span>完成行程解析、行銷素材、客戶配對與資料庫管理。</span></div>';
   toolbar.innerHTML='<div><h2 id="workspaceTitle"></h2><p id="workspaceHelp"></p></div><span id="workspaceProgress" class="workspace-progress"></span>';
   actions.innerHTML='<button id="workspacePrev">← 上一步</button><button id="workspaceNext" class="next">下一步 →</button>';
   panel.parentElement.insertBefore(workspace,panel);workspace.append(nav,main);main.append(toolbar,panel,actions);document.body.appendChild(mobileNav);panel.dataset.workspaceReady='true';
