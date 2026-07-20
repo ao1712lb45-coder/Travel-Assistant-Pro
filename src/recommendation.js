@@ -69,9 +69,9 @@
     return match ? Number(match[0]) : 0;
   }
 
-  function normalizeBudgetRange(value) {
-    const amount = Number(value) || 200000;
-    return Math.min(400000, Math.max(30000, Math.round(amount / 5000) * 5000));
+  function normalizeBudgetRange(value, fallback = 200000) {
+    const amount = Number(value) || fallback;
+    return Math.min(400000, Math.max(5000, Math.round(amount / 5000) * 5000));
   }
 
   function tripText(trip) {
@@ -238,18 +238,33 @@
   if (!button) return;
   const budgetInput = $('matchBudget');
   if (budgetInput) {
-    budgetInput.type = 'range'; budgetInput.min = '30000'; budgetInput.max = '400000'; budgetInput.step = '5000';
+    const budgetLabel = budgetInput.parentElement && budgetInput.parentElement.querySelector('label');
+    if (budgetLabel) budgetLabel.textContent = '每人預算範圍';
+    if (!$('matchBudgetMin')) budgetInput.insertAdjacentHTML('beforebegin', `<div id="matchBudgetMinValue" style="font-weight:800;color:#087f79;margin:4px 0 2px">最低預算：5,000 元</div><input id="matchBudgetMin" type="range" min="5000" max="400000" step="5000" value="5000" aria-label="每人最低預算" style="accent-color:#07958d;padding:8px 0">`);
+    const budgetMinInput = $('matchBudgetMin');
+    budgetInput.type = 'range'; budgetInput.min = '5000'; budgetInput.max = '400000'; budgetInput.step = '5000';
     budgetInput.value = String(normalizeBudgetRange(budgetInput.value));
     budgetInput.setAttribute('aria-label', '每人最高預算');
     budgetInput.style.accentColor = '#07958d'; budgetInput.style.padding = '8px 0';
-    if (!$('matchBudgetValue')) budgetInput.insertAdjacentHTML('beforebegin', `<div id="matchBudgetValue" style="font-weight:800;color:#087f79;margin:4px 0 2px">每人最高預算：200,000 元</div>`);
-    if (!$('matchBudgetScale')) budgetInput.insertAdjacentHTML('afterend', `<div id="matchBudgetScale" class="small" style="display:flex;justify-content:space-between"><span>30,000 元</span><span>400,000 元</span></div>`);
-    const renderBudget = () => { $('matchBudgetValue').textContent = `每人最高預算：${Number(budgetInput.value).toLocaleString('zh-TW')} 元`; };
-    budgetInput.addEventListener('input', renderBudget); button.addEventListener('click', renderBudget, true); renderBudget();
+    if (!$('matchBudgetValue')) budgetInput.insertAdjacentHTML('beforebegin', `<div id="matchBudgetValue" style="font-weight:800;color:#087f79;margin:10px 0 2px">最高預算：200,000 元</div>`);
+    if (!$('matchBudgetScale')) budgetInput.insertAdjacentHTML('afterend', `<div id="matchBudgetScale" class="small" style="display:flex;justify-content:space-between"><span>5,000 元</span><span>400,000 元</span></div>`);
+    const renderBudget = changed => {
+      if (Number(budgetMinInput.value) > Number(budgetInput.value)) {
+        if (changed === 'min') budgetInput.value = budgetMinInput.value;
+        else budgetMinInput.value = budgetInput.value;
+      }
+      $('matchBudgetMinValue').textContent = `最低預算：${Number(budgetMinInput.value).toLocaleString('zh-TW')} 元`;
+      $('matchBudgetValue').textContent = `最高預算：${Number(budgetInput.value).toLocaleString('zh-TW')} 元`;
+      if ($('matchPriceMin')) $('matchPriceMin').value = budgetMinInput.value;
+    };
+    budgetMinInput.addEventListener('input', () => renderBudget('min'));
+    budgetInput.addEventListener('input', () => renderBudget('max'));
+    button.addEventListener('click', () => renderBudget('search'), true); renderBudget('init');
   }
   const keywordInput = $('matchKeywords');
   if (keywordInput && !$('matchAirline')) keywordInput.insertAdjacentHTML('afterend', `<label style="margin-top:10px">航空公司或代碼（選填）</label><input id="matchAirline" placeholder="例如：BX、BR、CI，或釜山航空、長榮航空">`);
   if (keywordInput && !$('advancedMatchFilters')) keywordInput.insertAdjacentHTML('afterend', `<details id="advancedMatchFilters" style="margin-top:10px" class="hint"><summary style="cursor:pointer;font-weight:800">更多篩選條件</summary><div class="grid3" style="margin-top:10px"><div><label>最低價格</label><input id="matchPriceMin" type="number" min="0" step="1000" placeholder="例如 20000"></div><div><label>至少剩餘機位</label><input id="matchMinSeats" type="number" min="0" placeholder="例如 4"></div><div><label>行程天數</label><input id="matchDays" type="number" min="1" max="30" placeholder="例如 5"></div></div><div class="grid2" style="margin-top:10px"><div><label>出發機場</label><select id="matchAirport"><option value="">不限</option><option>桃園</option><option>台中</option><option>高雄</option></select></div><div><label>排序</label><select id="matchSort"><option value="score">符合度優先</option><option value="price">價格低到高</option><option value="date">出發日優先</option></select></div></div><div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px"><label style="font-weight:400"><input id="matchAvoidLowCost" type="checkbox" style="width:auto"> 排除廉航</label><label style="font-weight:400"><input id="matchAvoidShopping" type="checkbox" style="width:auto"> 排除購物站</label><label style="font-weight:400"><input id="matchAvoidRedEye" type="checkbox" style="width:auto"> 排除紅眼航班</label></div></details>`);
+  if ($('matchPriceMin')) { $('matchPriceMin').value = $('matchBudgetMin').value; $('matchPriceMin').parentElement.style.display = 'none'; }
   const monthSelect = $('matchMonth');
   if (monthSelect) {
     monthSelect.style.display = 'none';

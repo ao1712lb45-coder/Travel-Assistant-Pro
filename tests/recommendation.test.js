@@ -40,11 +40,13 @@ test('matches destination, month, people and per-person budget', () => {
   assert.equal(result[0].total, 131200);
 });
 
-test('budget slider stays between 30,000 and 400,000 in 5,000 increments', () => {
-  assert.equal(matcher.normalizeBudgetRange(10000), 30000);
+test('budget sliders stay between 5,000 and 400,000 in 5,000 increments', () => {
+  assert.equal(matcher.normalizeBudgetRange(1000), 5000);
+  assert.equal(matcher.normalizeBudgetRange(10000), 10000);
   assert.equal(matcher.normalizeBudgetRange(123456), 125000);
   assert.equal(matcher.normalizeBudgetRange(500000), 400000);
   assert.equal(matcher.normalizeBudgetRange(''), 200000);
+  assert.equal(matcher.normalizeBudgetRange('', 5000), 5000);
 });
 
 test('broad Southeast Asia search includes a Samed Island Bangkok-code trip', () => {
