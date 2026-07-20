@@ -41,9 +41,11 @@ test('loads all Besttour calendar departures from the official API', async () =>
     ] }] }] });
     return new Response('<html><div id="root"></div></html>', { status: 200, headers: { 'content-type': 'text/html' } });
   };
-  const result = await fetchItineraryPage('https://www.besttour.com.tw/itinerary/FUK05BR260921C', mockFetch);
+  const result = await fetchItineraryPage('https://www.besttour.com.tw/itinerary/FUK05BR260916C', mockFetch);
   assert.equal(result.source, 'besttour-api');
   assert.equal(result.fields.price, 38900);
+  assert.equal(result.fields.lowestPriceDeparture.code, 'FUK05BR260921C');
+  assert.equal(result.fields.lowestPriceUrl, 'https://www.besttour.com.tw/itinerary/FUK05BR260921C');
   assert.deepEqual(result.fields.dates, ['2026/09/16', '2026/09/21']);
   assert.equal(result.fields.airline, '長榮航空');
 });
@@ -66,6 +68,8 @@ test('loads ITTMS through the official ERP API without exposing agent data', asy
   assert.equal(result.source, 'ittms-api');
   assert.equal(result.finalUrl, 'https://itinerary.ittms.com.tw/?travel_no=BKK05JX261111SM&agt_no=3004C5');
   assert.equal(result.fields.price, 29888);
+  assert.equal(result.fields.lowestPriceDeparture.code, 'BKK05JX261111SM');
+  assert.equal(result.fields.lowestPriceUrl, 'https://itinerary.ittms.com.tw/?travel_no=BKK05JX261111SM&agt_no=3004C5');
   assert.equal(result.fields.airline, '星宇航空');
   assert.deepEqual(result.fields.dates, ['2026/11/11', '2026/11/18']);
   assert.doesNotMatch(result.text, /private/);

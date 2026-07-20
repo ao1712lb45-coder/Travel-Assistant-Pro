@@ -42,7 +42,8 @@
       if (!window.TravelAssistantParser) throw new Error('行程解析模組尚未載入。');
       const result = window.TravelAssistantParser.parse({ url: payload.data.finalUrl, text: payload.data.text });
       if (!result.code || result.code !== payload.data.requestedCode) throw new Error('官網回傳的團號與網址不一致，已停止匯入。');
-      const missing = applyResult(result, payload.data.text, payload.data.finalUrl);
+      const copyUrl = payload.data.fields && payload.data.fields.lowestPriceUrl || payload.data.finalUrl;
+      const missing = applyResult(result, payload.data.text, copyUrl);
       const providerName = payload.data.provider === 'ittms' ? 'ITTMS' : 'Besttour';
       const dates = payload.data.fields && payload.data.fields.dates ? payload.data.fields.dates.length : result.dates.length;
       show(missing.length ? `${providerName} 已匯入 ${dates} 個出發日期；請人工確認：${missing.join('、')}` : `${providerName} 已完成解析，共匯入 ${dates} 個出發日期，社群文案已更新。`, missing.length ? 'warn' : 'ok');

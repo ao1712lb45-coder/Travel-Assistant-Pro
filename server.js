@@ -151,6 +151,21 @@ async function fetchOfficialItinerary(code, fetchImpl, options = {}) {
   const prices = (calendarRows.length ? calendarRows.map(row => row.price) : [info.mini_price || info.member_price])
     .map(value => Number(String(value || '').replace(/,/g, ''))).filter(value => value > 0);
   const minimumPrice = prices.length ? Math.min(...prices) : null;
+  const lowestPriceDeparture = calendarRows
+    .map(item => ({ date: item.dateFull, code: String(item.no || '').trim().toUpperCase(), price: Number(String(item.price || '').replace(/,/g, '')) || null }))
+    .filter(item => item.code && item.price && item.price === minimumPrice)
+    .sort((left, right) => left.date.localeCompare(right.date))[0] || null;
+  let lowestPriceUrl = '';
+  if (lowestPriceDeparture) {
+    if (provider === 'ittms') {
+      const url = new URL('https://itinerary.ittms.com.tw/');
+      url.searchParams.set('travel_no', lowestPriceDeparture.code);
+      url.searchParams.set('agt_no', ITTMS_AGENT);
+      lowestPriceUrl = url.href;
+    } else {
+      lowestPriceUrl = `https://www.besttour.com.tw/itinerary/${lowestPriceDeparture.code}`;
+    }
+  }
   const flights = flightPayload && flightPayload.status === '0' && Array.isArray(flightPayload.data) ? flightPayload.data : [];
   const features = featurePayload && featurePayload.status === '0' && Array.isArray(featurePayload.data) ? featurePayload.data : [];
   const lines = [
@@ -160,7 +175,7 @@ async function fetchOfficialItinerary(code, fetchImpl, options = {}) {
     features.length ? '行程亮點' : '', ...features.map(item => `${item.name || ''}\n${htmlToText(item.content || '')}`)
   ].filter(Boolean);
   return { text: lines.join('\n'), source: `${provider}-api`, fields: {
-    title: info.title_1 || info.title_2 || '', price: minimumPrice, dates,
+    title: info.title_1 || info.title_2 || '', price: minimumPrice, dates, lowestPriceDeparture, lowestPriceUrl,
     airline: flights.find(item => item.name)?.name || '', flights,
     departures: calendarRows.map(item => ({ date: item.dateFull, code: item.no, price: Number(String(item.price || '').replace(/,/g, '')) || null,
       seats: Number(item.amount) || 0, airline: item.flight_name || '', flight: item.flight || '', departureCity: item.city || '' }))

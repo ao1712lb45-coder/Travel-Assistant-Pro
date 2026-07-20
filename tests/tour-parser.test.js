@@ -26,6 +26,12 @@ test('CI remains China Airlines', () => {
   assert.equal(result.airline, '中華航空');
 });
 
+test('BX airline code is Air Busan', () => {
+  const result = parser.parseTourCode('PUS05BX261002J');
+  assert.equal(result.airlineCode, 'BX');
+  assert.equal(result.airline, '釜山航空');
+});
+
 test('supports airline codes that contain a number', () => {
   assert.equal(parser.parseTourCode('CTU05D7261111SM').airline, '亞洲航空X');
   assert.equal(parser.parseTourCode('CTU053U261111SM').airline, '四川航空');
