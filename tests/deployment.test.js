@@ -37,6 +37,11 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(page, /crm\.js/);
     assert.match(page, /v2-ui\.js/);
     assert.ok(page.indexOf('crm.js') < page.indexOf('app-shell.js'), 'CRM must load before the workspace reads its sections');
+    const marketing = await fetch(`${base}/src/marketing-suite.js`, { headers:{ authorization:basic('team','secret') } });
+    assert.equal(marketing.status, 200);
+    const marketingScript = await marketing.text();
+    assert.match(marketingScript, /一鍵產生全部素材/);
+    assert.match(marketingScript, /已複製目前素材/);
     assert.match(page, /id="regenLine">換一篇 LINE/);
     assert.match(page, /id="regenFacebook">換一篇 Facebook/);
     assert.match(page, /id="quickRegionSync"/);
