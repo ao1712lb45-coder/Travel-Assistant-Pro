@@ -50,6 +50,9 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(bulkImportScript, /addTourCodeField/);
     assert.match(bulkImportScript, /count>=7/);
     assert.match(bulkImportScript, /extra-tour-code/);
+    assert.match(bulkImportScript, /bulkProgressBar/);
+    assert.match(bulkImportScript, /60000/);
+    assert.match(bulkImportScript, /stopBulkImport/);
     assert.match(page, /data-tab="lineOut">社群文案/);
     assert.match(page, /id="regenLine">換一篇文案/);
     assert.doesNotMatch(page, /data-tab="fbOut">Facebook/);
