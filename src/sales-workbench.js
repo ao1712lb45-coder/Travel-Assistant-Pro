@@ -61,14 +61,22 @@
     const text = clean(message), lower = text.toLowerCase();
     const fullDatePattern=/(20\d{2})[\/.-](\d{1,2})[\/.-](\d{1,2})/g;
     const fullDates = [...text.matchAll(fullDatePattern)].map(m => `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`);
-    const shortDateSource=text.replace(fullDatePattern,' ');
-    const shortDates = [...shortDateSource.matchAll(/(?<!\d)(\d{1,2})[\/.-](\d{1,2})(?!\d|\s*(?:天|日))/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
-    const chineseDates = [...text.matchAll(/(\d{1,2})月(\d{1,2})[日號]?/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
+    const shortDateSource=text.replace(fullDatePattern,' ').replace(/\d{1,2}\s*(?:-|~|～|至|到)\s*\d{1,2}\s*(?:天|日)(?!期)/g,' ');
+    const inferredDate = (month, day) => {
+      let year=now.getFullYear();
+      const candidate=new Date(year,Number(month)-1,Number(day));
+      const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+      if (candidate < today) year++;
+      return `${year}-${String(+month).padStart(2,'0')}-${String(+day).padStart(2,'0')}`;
+    };
+    const shortDates = [...shortDateSource.matchAll(/(?<!\d)(\d{1,2})[\/.-](\d{1,2})(?!\d)/g)].map(m => inferredDate(m[1],m[2]));
+    const chineseDates = [...text.matchAll(/(\d{1,2})月(\d{1,2})[日號]?/g)].map(m => inferredDate(m[1],m[2]));
     let dates = [...new Set([...fullDates,...shortDates,...chineseDates])].slice(0,2);
     const relativeMonth = text.match(/(今年|明年|後年)?\s*([一二兩三四五六七八九十\d]{1,3})月(?:底|中|初|份)?/);
     let monthOnly = relativeMonth ? (/^\d+$/.test(relativeMonth[2]) ? +relativeMonth[2] : chineseNumber(relativeMonth[2])) : null;
     const yearOffset = relativeMonth && relativeMonth[1] ? ({今年:0,明年:1,後年:2}[relativeMonth[1]]) : null;
     let requestedYear = yearOffset == null ? null : now.getFullYear() + yearOffset;
+    if (monthOnly && requestedYear == null) requestedYear = monthOnly < now.getMonth()+1 ? now.getFullYear()+1 : now.getFullYear();
     const holiday = dates.length ? null : resolveTaiwanHoliday(text, now);
     if (holiday) { dates=[holiday.from,holiday.to]; requestedYear=Number(holiday.from.slice(0,4)); monthOnly=Number(holiday.from.slice(5,7)); }
     const airports = AIRPORTS.filter(name => text.includes(name));

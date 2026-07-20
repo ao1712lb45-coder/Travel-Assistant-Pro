@@ -61,6 +61,15 @@ test('recognizes a day range without treating it as an April date and accepts to
   assert.ok(!request.missing.some(item=>/人數|大人|兒童|小孩/.test(item)));
 });
 
+test('moves an unspecified past month or date into the next year',()=>{
+  const february=parseCustomerMessage('想找2月日本行程',new Date(2026,6,20));
+  assert.equal(february.month,2);
+  assert.equal(february.requestedYear,2027);
+  assert.deepEqual(parseCustomerMessage('想找2/10日本行程',new Date(2026,6,20)).dates,['2027-02-10']);
+  const october=parseCustomerMessage('想找10月日本行程',new Date(2026,6,20));
+  assert.equal(october.requestedYear,2026);
+});
+
 test('comparison never invents unknown operational fields',()=>{
   const record=comparisonRecord({trip:{code:'TYO05JX261101AA',title:'東京五日',price:'39,900元起',dates:'2026/11/01',airline:'星宇航空',source:'besttour-search',updated:'2026-07-18T10:00:00Z'}});
   assert.equal(record.hotels,'待人工確認');
