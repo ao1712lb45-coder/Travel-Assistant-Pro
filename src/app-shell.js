@@ -16,6 +16,18 @@
     { id:'crm', label:'客戶 CRM', icon:'7', sections:[sections[7]], help:'記錄客戶喜好與避開條件，快速檢查行程適配度。' }
   ];
 
+  const rawTextSection = sections[1];
+  if (rawTextSection) {
+    rawTextSection.classList.add('raw-text-advanced','raw-text-collapsed');
+    const toggle = document.createElement('button');
+    toggle.id = 'toggleRawTextSection'; toggle.type = 'button'; toggle.textContent = '顯示進階文字內容';
+    toggle.addEventListener('click', () => {
+      const collapsed = rawTextSection.classList.toggle('raw-text-collapsed');
+      toggle.textContent = collapsed ? '顯示進階文字內容' : '隱藏進階文字內容';
+    });
+    sections[0].querySelector('.btnrow')?.appendChild(toggle);
+  }
+
   const style = document.createElement('style');
   style.textContent = `
     body{padding-bottom:0} header{position:sticky;top:0;z-index:30;box-shadow:0 4px 18px rgba(23,32,51,.14)}
@@ -26,7 +38,7 @@
     .workspace-nav button{width:100%;display:grid;grid-template-columns:32px 1fr;align-items:center;text-align:left;margin:3px 0;background:transparent;color:#344054;padding:10px 9px;border:1px solid transparent}.workspace-nav button:hover{background:#fff7ed}.workspace-nav button.active{background:linear-gradient(135deg,#fff1f2,#fff7ed);color:#9f1239;border-color:#fecdd3}
     .nav-step{width:27px;height:27px;border-radius:9px;background:#eef2f7;display:grid;place-items:center;font-size:12px}.active .nav-step{background:#d92d45;color:#fff}
     .workspace-main{min-width:0}.workspace-toolbar{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 16px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;align-items:center}.workspace-toolbar h2{font-size:18px;margin:0}.workspace-toolbar p{font-size:12px;color:var(--muted);margin:3px 0 0}.workspace-progress{font-size:12px;font-weight:700;color:#9f1239;background:#fff1f2;padding:7px 10px;border-radius:999px;white-space:nowrap}
-    .workspace-main>.panel{overflow:visible}.workspace-main>.panel>.section{display:none}.workspace-main>.panel>.section.workspace-visible{display:block;animation:workspaceIn .18s ease-out}.workspace-main>.panel>.section.workspace-visible+.workspace-visible{border-top:1px solid #edf1f6}
+    .workspace-main>.panel{overflow:visible}.workspace-main>.panel>.section{display:none}.workspace-main>.panel>.section.workspace-visible{display:block;animation:workspaceIn .18s ease-out}.workspace-main>.panel>.section.workspace-visible+.workspace-visible{border-top:1px solid #edf1f6}.workspace-main>.panel>.raw-text-collapsed{display:none!important}
     .workspace-actions{display:flex;justify-content:space-between;gap:8px;padding:12px 0 4px}.workspace-actions button{min-width:118px}.workspace-actions .next{color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand2))}.mobile-nav{display:none}
     @keyframes workspaceIn{from{opacity:.35;transform:translateY(4px)}to{opacity:1;transform:none}}
     @media(max-width:820px){body{padding-bottom:72px}header{position:relative}.workspace{display:block;margin:10px auto;padding:0 8px}.workspace-nav{display:none}.workspace-toolbar{position:sticky;top:6px;z-index:20;padding:10px 12px}.workspace-progress{font-size:11px}.workspace-main>.panel{border-radius:13px}.mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(6,1fr);left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.97);border-top:1px solid #d9e2ee;padding:6px 4px max(6px,env(safe-area-inset-bottom));box-shadow:0 -5px 18px rgba(23,32,51,.12)}.mobile-nav button{padding:5px 1px;background:transparent;border-radius:8px;color:#667085;font-size:10px;display:grid;justify-items:center;gap:2px}.mobile-nav button.active{background:#fff1f2;color:#9f1239}.mobile-nav .nav-step{width:25px;height:25px;border-radius:8px}.workspace-actions{padding:10px 2px}.workspace-actions button{min-width:0;flex:1}.section{padding:13px}}

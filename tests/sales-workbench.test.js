@@ -42,6 +42,16 @@ test('recognizes next January and an unspecified party of four',()=>{
   assert.ok(result.missing.includes('大人、兒童與嬰兒人數'));
 });
 
+test('recognizes upcoming Lunar New Year and Taiwan holiday aliases',()=>{
+  const request=parseCustomerMessage('我要找過年行程 4位 預算10萬/人',new Date(2026,6,20));
+  assert.equal(request.holiday,'農曆春節');
+  assert.deepEqual(request.dates,['2027-02-05','2027-02-11']);
+  assert.equal(request.month,2);
+  assert.equal(request.requestedYear,2027);
+  assert.ok(!request.missing.some(item=>item.includes('日期')));
+  assert.deepEqual(parseCustomerMessage('想找雙十連假去日本',new Date(2026,6,20)).dates,['2026-10-09','2026-10-11']);
+});
+
 test('comparison never invents unknown operational fields',()=>{
   const record=comparisonRecord({trip:{code:'TYO05JX261101AA',title:'東京五日',price:'39,900元起',dates:'2026/11/01',airline:'星宇航空',source:'besttour-search',updated:'2026-07-18T10:00:00Z'}});
   assert.equal(record.hotels,'待人工確認');

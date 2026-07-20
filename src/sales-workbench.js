@@ -5,6 +5,38 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   const DESTINATIONS = ['日本','北海道','東京','大阪','九州','沖繩','韓國','首爾','釜山','濟州島','東南亞','泰國','曼谷','清邁','普吉島','越南','峴港','河內','富國島','新加坡','馬來西亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲'];
   const AIRPORTS = ['桃園','松山','台中','高雄'];
+  const TAIWAN_HOLIDAYS = {
+    2026:[
+      ['元旦','2026-01-01','2026-01-01',['元旦','跨年','開國紀念日']],
+      ['農曆春節','2026-02-14','2026-02-22',['過年','春節','農曆年','農曆春節','新年假期']],
+      ['和平紀念日','2026-02-27','2026-03-01',['二二八','228','和平紀念日']],
+      ['兒童節及清明節','2026-04-03','2026-04-06',['兒童節','清明節','清明連假']],
+      ['勞動節','2026-05-01','2026-05-03',['勞動節','五一勞動節']],
+      ['端午節','2026-06-19','2026-06-21',['端午','端午節','端午連假']],
+      ['中秋節及教師節','2026-09-25','2026-09-28',['中秋','中秋節','中秋連假','教師節']],
+      ['國慶日','2026-10-09','2026-10-11',['國慶','雙十','雙十節','國慶日']],
+      ['光復節','2026-10-24','2026-10-26',['光復節','台灣光復節']],
+      ['行憲紀念日','2026-12-25','2026-12-27',['行憲紀念日','聖誕節','耶誕節']]
+    ],
+    2027:[
+      ['元旦','2027-01-01','2027-01-03',['元旦','跨年','開國紀念日']],
+      ['農曆春節','2027-02-05','2027-02-11',['過年','春節','農曆年','農曆春節','新年假期']],
+      ['和平紀念日','2027-02-27','2027-03-01',['二二八','228','和平紀念日']],
+      ['兒童節及清明節','2027-04-03','2027-04-06',['兒童節','清明節','清明連假']],
+      ['勞動節','2027-04-30','2027-05-02',['勞動節','五一勞動節']],
+      ['端午節','2027-06-09','2027-06-09',['端午','端午節','端午連假']],
+      ['中秋節','2027-09-15','2027-09-15',['中秋','中秋節','中秋連假']],
+      ['教師節','2027-09-28','2027-09-28',['教師節']],
+      ['國慶日','2027-10-09','2027-10-11',['國慶','雙十','雙十節','國慶日']],
+      ['光復節','2027-10-23','2027-10-25',['光復節','台灣光復節']],
+      ['行憲紀念日','2027-12-24','2027-12-26',['行憲紀念日','聖誕節','耶誕節']]
+    ]
+  };
+  function resolveTaiwanHoliday(text, now = new Date()) {
+    const source=clean(text),today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const matches=Object.values(TAIWAN_HOLIDAYS).flat().map(([name,from,to,aliases])=>({name,from,to,aliases})).filter(item=>item.aliases.some(alias=>source.includes(alias))).sort((a,b)=>a.from.localeCompare(b.from));
+    return matches.find(item=>item.to>=today)||matches[matches.length-1]||null;
+  }
   const PREFS = [
     ['不要廉航',/不要廉航|不搭廉航|排除廉航|傳統航空/],['可搭廉航',/可以廉航|可搭廉航|廉航也可以/],
     ['不要購物站',/不要購物|無購物|不進購物站|不要購物站/],['可接受購物站',/可以購物|購物站沒關係|可接受購物/],
@@ -32,11 +64,13 @@
     const shortDateSource=text.replace(fullDatePattern,' ');
     const shortDates = [...shortDateSource.matchAll(/(?<!\d)(\d{1,2})[\/.-](\d{1,2})(?!\d)/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
     const chineseDates = [...text.matchAll(/(\d{1,2})月(\d{1,2})[日號]?/g)].map(m => `${now.getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`);
-    const dates = [...new Set([...fullDates,...shortDates,...chineseDates])].slice(0,2);
+    let dates = [...new Set([...fullDates,...shortDates,...chineseDates])].slice(0,2);
     const relativeMonth = text.match(/(今年|明年|後年)?\s*([一二兩三四五六七八九十\d]{1,3})月(?:底|中|初|份)?/);
-    const monthOnly = relativeMonth ? (/^\d+$/.test(relativeMonth[2]) ? +relativeMonth[2] : chineseNumber(relativeMonth[2])) : null;
+    let monthOnly = relativeMonth ? (/^\d+$/.test(relativeMonth[2]) ? +relativeMonth[2] : chineseNumber(relativeMonth[2])) : null;
     const yearOffset = relativeMonth && relativeMonth[1] ? ({今年:0,明年:1,後年:2}[relativeMonth[1]]) : null;
-    const requestedYear = yearOffset == null ? null : now.getFullYear() + yearOffset;
+    let requestedYear = yearOffset == null ? null : now.getFullYear() + yearOffset;
+    const holiday = dates.length ? null : resolveTaiwanHoliday(text, now);
+    if (holiday) { dates=[holiday.from,holiday.to]; requestedYear=Number(holiday.from.slice(0,4)); monthOnly=Number(holiday.from.slice(5,7)); }
     const airports = AIRPORTS.filter(name => text.includes(name));
     const destinations = DESTINATIONS.filter(name => text.includes(name));
     const adult = text.match(/(?:大人|成人|大)(?:\s*)(\d+)\s*(?:位|人)?|(?<!\d)(\d+)\s*(?:位|人)?成人/);
@@ -59,7 +93,7 @@
     const sights = text.split(/[，,、。\n]/).map(clean).filter(part => /想去|一定要|指定|希望有/.test(part) && part.length <= 40);
     const result = { raw:text, dates, month:monthOnly || (dates[0] ? +dates[0].slice(5,7) : null), requestedYear, airports,
       destination:destinations[0] || '', alternatives:destinations.slice(1), adults, children, infants, totalPeople, budget,
-      budgetType:totalBudget ? 'total' : 'perPerson', days:dayMatch ? +dayMatch[1] : null, travelType, preferences:[...knownPrefs], sights };
+      budgetType:totalBudget ? 'total' : 'perPerson', days:dayMatch ? +dayMatch[1] : null, travelType, preferences:[...knownPrefs], sights, holiday:holiday&&holiday.name||'' };
     result.missing = missingFields(result);
     return result;
   }
@@ -115,5 +149,5 @@
     document.addEventListener('travel:match-results',event=>{currentResults=event.detail||[];setTimeout(()=>{resultBox.querySelectorAll('[data-match-index]').forEach((card,index)=>{const row=document.createElement('label');row.style.cssText='display:block;margin:8px 0 0;font-weight:700';row.innerHTML=`<input type="checkbox" class="compareTrip" value="${index}" style="width:auto"> 加入比較（選 2～5 團）`;card.appendChild(row);});replyBox.innerHTML='<div class="btnrow"><button id="compareSelected">比較已勾選行程</button></div><div id="comparisonOutput"></div><label style="margin-top:10px">LINE 回覆版本</label><select id="replyType"><option value="brief">簡短版</option><option value="compare">三方案比較版</option><option value="alternative">找不到商品／替代方案版</option></select><textarea id="customerReplyOutput" class="output" style="min-height:180px"></textarea><button id="copyCustomerReply">複製 LINE 回覆</button>';const selected=()=>[...resultBox.querySelectorAll('.compareTrip:checked')].map(x=>comparisonRecord(currentResults[+x.value])).slice(0,5);const refreshReply=()=>{const records=selected().length?selected():currentResults.slice(0,3).map(comparisonRecord),replies=buildReplies(records,parsed||parseCustomerMessage(''));byId('customerReplyOutput').value=replies[byId('replyType').value];};byId('compareSelected').onclick=()=>{const records=selected();if(records.length<2||records.length>5){byId('comparisonOutput').innerHTML='<div class="status show warn">請勾選 2～5 個行程。</div>';return;}const fields=[['價格','price'],['日期','dates'],['航班','flight'],['航空公司','airline'],['天數','days'],['飯店','hotels'],['購物站','shopping'],['主要景點','attractions'],['額外費用','extraFees'],['成團狀態','status'],['資料來源','source'],['最後更新','updated']];byId('comparisonOutput').innerHTML=`<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr><th style="text-align:left;padding:7px;border:1px solid #ddd">比較項目</th>${records.map(r=>`<th style="text-align:left;padding:7px;border:1px solid #ddd">${r.title}</th>`).join('')}</tr>${fields.map(([label,key])=>`<tr><th style="text-align:left;padding:7px;border:1px solid #ddd">${label}</th>${records.map(r=>`<td style="padding:7px;border:1px solid #ddd">${r[key]}</td>`).join('')}</tr>`).join('')}</table></div>`;refreshReply();};byId('replyType').onchange=refreshReply;byId('copyCustomerReply').onclick=()=>copy('customerReplyOutput');refreshReply();},0);});
   }
   if (typeof document !== 'undefined') { if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install(); }
-  return { parseCustomerMessage, missingFields, questionReply, sourceInfo, comparisonRecord, buildReplies, install };
+  return { TAIWAN_HOLIDAYS, resolveTaiwanHoliday, parseCustomerMessage, missingFields, questionReply, sourceInfo, comparisonRecord, buildReplies, install };
 });
