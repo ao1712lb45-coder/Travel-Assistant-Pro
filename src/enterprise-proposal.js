@@ -10,14 +10,18 @@
   const titleOf = trip => clean(trip.title || trip.mainTitle) || clean(trip.code) || '精選團體行程';
   function buildEnterpriseEmail(trips, options = {}) {
     const company=clean(options.company), recipient=clean(options.recipient), sender=clean(options.sender), line=clean(options.line);
-    const subject=clean(options.subject) || `員工旅遊精選行程提案${company ? `｜${company}` : ''}`;
+    const enteredSubject=clean(options.subject);
+    let subject=enteredSubject;
+    if(!subject || /^員工旅遊精選行程提案(?:｜.*)?$/.test(subject)) subject=`員工旅遊精選行程提案${company ? `｜${company}` : ''}`;
+    else if(company && !subject.includes(company)) subject=`${subject}｜${company}`;
     const greeting=recipient ? `${recipient} 您好：` : '福委您好：';
     const items=(trips||[]).map((trip,index)=>{
       const facts=[valid(trip.days)?`天數：${clean(trip.days)}`:'',valid(trip.airline)?`航空公司：${clean(trip.airline)}`:'',valid(trip.dates)?`出發日期：${clean(trip.dates)}`:'',valid(trip.price)?`參考售價：${clean(trip.price)}`:''].filter(Boolean);
       const highlights=(trip.highlights||[]).map(clean).filter(Boolean).slice(0,3);
       return `${index+1}. ${titleOf(trip)}${trip.code?`（${clean(trip.code)}）`:''}\n${facts.join('\n')}${highlights.length?`\n行程亮點：${highlights.join('、')}`:''}${valid(trip.url)?`\n完整行程：${clean(trip.url)}`:''}`;
     });
-    const body=`${greeting}\n\n為貴公司整理以下 ${items.length} 個員工旅遊行程，方便福委依目的地、日期與預算進行初步比較：\n\n${items.join('\n\n')}\n\n以上售價、機位與行程內容仍以報名時確認為準；若能提供預計人數、預算、希望日期及旅遊天數，我可以再協助縮小範圍並確認團體方案。\n\n${[sender,line?`LINE／電話：${line}`:''].filter(Boolean).join('\n')}`.trim();
+    const companyIntro=company?`針對 ${company} 整理以下 ${items.length} 個員工旅遊行程`:`為貴公司整理以下 ${items.length} 個員工旅遊行程`;
+    const body=`${greeting}\n\n${companyIntro}，方便福委依目的地、日期與預算進行初步比較：\n\n${items.join('\n\n')}\n\n以上售價、機位與行程內容仍以報名時確認為準；若能提供預計人數、預算、希望日期及旅遊天數，我可以再協助縮小範圍並確認團體方案。\n\n${[sender,line?`LINE／電話：${line}`:''].filter(Boolean).join('\n')}`.trim();
     return { subject, body };
   }
   function install() {
