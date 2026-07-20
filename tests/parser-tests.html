@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Travel Assistant Pro Parser Tests</title>
+  <style>
+    body{font-family:system-ui,"Microsoft JhengHei",sans-serif;max-width:900px;margin:30px auto;padding:0 16px;background:#f6f7fb;color:#172033}
+    h1{font-size:24px}.summary,.case{background:#fff;border:1px solid #dfe4ec;border-radius:12px;padding:14px;margin:12px 0}.pass{border-left:6px solid #15803d}.fail{border-left:6px solid #b91c1c}pre{white-space:pre-wrap;background:#f8fafc;padding:10px;border-radius:8px;overflow:auto}
+  </style>
+</head>
+<body>
+  <h1>Travel Assistant Pro 1.1.0｜解析器測試</h1>
+  <div id="summary" class="summary">測試中……</div>
+  <div id="results"></div>
+  <script src="../src/tour-parser.js"></script>
+  <script>
+    const cases = [
+      {
+        name:'九州長榮標準行程',
+        url:'https://itinerary.ittms.com.tw/?travel_no=FUK05BR261206FU',
+        text:'【超值楓九州５日】高千穗峽、阿蘇大觀峰、熊本城、柳川遊船、湯布院\n最低售價 37,900元起\n出發日期 12/6 12/12 12/19 12/26\n參考航班\nBR106 桃園 福岡\n團號 FUK05BR261206FU',
+        expect:{code:'FUK05BR261206FU',destination:'福岡／九州',days:5,airline:'長榮航空',price:'37,900元起',date:'12/6'}
+      },
+      {
+        name:'北海道酷航多日期',
+        url:'https://itinerary.ittms.com.tw/?travel_no=SPK06TR260730JF',
+        text:'【酷航FUN暑假北海道６日】富良野花田、企鵝遊行、絕景青池、螃蟹溫泉\n清艙價 34,888元\n出發日期：7/30、8/6、8/13\n參考航班 TR892\n團號：SPK06TR260730JF',
+        expect:{code:'SPK06TR260730JF',destination:'北海道',days:6,airline:'酷航',price:'34,888元起',date:'7/30'}
+      },
+      {
+        name:'團號回退日期與航空',
+        url:'https://www.besttour.com.tw/itinerary/TYO05JX261222D',
+        text:'【經典東京迪士尼５日】箱根富士美景、鎌倉大佛、富士全景纜車',
+        expect:{code:'TYO05JX261222D',destination:'東京',days:5,airline:'星宇航空',date:'12/22'}
+      }
+    ];
+
+    function assertEqual(actual, expected, label){
+      if(actual !== expected) throw new Error(`${label}：預期 ${expected}，實際 ${actual}`);
+    }
+
+    let passed=0;
+    const container=document.getElementById('results');
+    cases.forEach(test=>{
+      const box=document.createElement('div');
+      try{
+        const result=TravelAssistantParser.parse({url:test.url,text:test.text});
+        assertEqual(result.code,test.expect.code,'團號');
+        assertEqual(result.destination,test.expect.destination,'目的地');
+        assertEqual(result.days,test.expect.days,'天數');
+        assertEqual(result.airline,test.expect.airline,'航空');
+        if(test.expect.price) assertEqual(result.price,test.expect.price,'價格');
+        if(test.expect.date && !result.dates.includes(test.expect.date)) throw new Error(`日期：找不到 ${test.expect.date}`);
+        if(test.url.includes('ittms') && !result.url.includes('agt_no=3004C5')) throw new Error('ITTMS 網址未補上 agt_no');
+        passed++;
+        box.className='case pass';
+        box.innerHTML=`<strong>✅ ${test.name}</strong><pre>${JSON.stringify(result,null,2)}</pre>`;
+      }catch(error){
+        box.className='case fail';
+        box.innerHTML=`<strong>❌ ${test.name}</strong><pre>${error.message}</pre>`;
+      }
+      container.appendChild(box);
+    });
+    const failed=cases.length-passed;
+    document.getElementById('summary').innerHTML=`完成 ${cases.length} 項測試：<strong>${passed} 通過</strong>、<strong>${failed} 失敗</strong>`;
+  </script>
+</body>
+</html>
