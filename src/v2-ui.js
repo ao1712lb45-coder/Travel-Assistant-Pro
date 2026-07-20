@@ -14,7 +14,7 @@
     button{border-radius:11px;transition:transform .12s,box-shadow .12s,background .12s}button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 5px 12px rgba(16,42,46,.1)}button.primary,.workspace-actions .next{background:linear-gradient(135deg,#007f78,#15a298)!important}button.dark{background:#103f43}.tab.active{background:#0e5053;border-color:#0e5053}
     .hint{background:#f5faf9;border-color:#dbeae9}.badge{background:#e3f5f2;color:#087069}.output{min-height:300px;background:#fbfdfd;border-color:#cfdfdf;line-height:1.65}
     .workspace-brand strong:before{content:'✦';color:#e9863b;margin-right:7px}.workspace-nav button.active{background:linear-gradient(135deg,#e4f6f3,#fff4e9)!important;color:#07645f!important;border-color:#bde2dd!important}.active .nav-step{background:#007f78!important}.workspace-progress{color:#07645f!important;background:#e4f6f3!important}
-    @media(max-width:820px){.mobile-nav{grid-template-columns:repeat(7,minmax(0,1fr))!important}.mobile-nav button{font-size:9px!important}}
+    @media(max-width:820px){.mobile-nav{grid-template-columns:repeat(8,minmax(0,1fr))!important}.mobile-nav button{font-size:9px!important}}
     @media(max-width:600px){header{padding:9px 14px}header p{font-size:11px}.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tab{width:100%;font-size:12px}.output{min-height:260px}}
   `;
   document.head.appendChild(style);

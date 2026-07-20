@@ -13,7 +13,8 @@
     { id:'check', label:'發布檢查', icon:'4', sections:[sections[4]], help:'發布前確認必要資料與網址格式。' },
     { id:'match', label:'客戶配對', icon:'5', sections:[sections[5]], help:'依地區、預算、月份與完整行程內容搜尋合適團體。' },
     { id:'database', label:'行程資料庫', icon:'6', sections:[sections[6]], help:'同步、搜尋、匯入與備份行程資料。' },
-    { id:'crm', label:'客戶 CRM', icon:'7', sections:[sections[7]], help:'記錄客戶喜好與避開條件，快速檢查行程適配度。' }
+    { id:'crm', label:'客戶 CRM', icon:'7', sections:[sections[7]], help:'記錄客戶喜好與避開條件，快速檢查行程適配度。' },
+    { id:'enterprise', label:'企業福委', icon:'8', sections:[sections[8]], help:'一次選取多個行程，產生企業戶專用的提案電子郵件。' }
   ];
 
   const rawTextSection = sections[1];
@@ -41,7 +42,7 @@
     .workspace-main>.panel{overflow:visible}.workspace-main>.panel>.section{display:none}.workspace-main>.panel>.section.workspace-visible{display:block;animation:workspaceIn .18s ease-out}.workspace-main>.panel>.section.workspace-visible+.workspace-visible{border-top:1px solid #edf1f6}.workspace-main>.panel>.raw-text-collapsed{display:none!important}
     .workspace-actions{display:flex;justify-content:space-between;gap:8px;padding:12px 0 4px}.workspace-actions button{min-width:118px}.workspace-actions .next{color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand2))}.mobile-nav{display:none}
     @keyframes workspaceIn{from{opacity:.35;transform:translateY(4px)}to{opacity:1;transform:none}}
-    @media(max-width:820px){body{padding-bottom:72px}header{position:relative}.workspace{display:block;margin:10px auto;padding:0 8px}.workspace-nav{display:none}.workspace-toolbar{position:sticky;top:6px;z-index:20;padding:10px 12px}.workspace-progress{font-size:11px}.workspace-main>.panel{border-radius:13px}.mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(6,1fr);left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.97);border-top:1px solid #d9e2ee;padding:6px 4px max(6px,env(safe-area-inset-bottom));box-shadow:0 -5px 18px rgba(23,32,51,.12)}.mobile-nav button{padding:5px 1px;background:transparent;border-radius:8px;color:#667085;font-size:10px;display:grid;justify-items:center;gap:2px}.mobile-nav button.active{background:#fff1f2;color:#9f1239}.mobile-nav .nav-step{width:25px;height:25px;border-radius:8px}.workspace-actions{padding:10px 2px}.workspace-actions button{min-width:0;flex:1}.section{padding:13px}}
+    @media(max-width:820px){body{padding-bottom:72px}header{position:relative}.workspace{display:block;margin:10px auto;padding:0 8px}.workspace-nav{display:none}.workspace-toolbar{position:sticky;top:6px;z-index:20;padding:10px 12px}.workspace-progress{font-size:11px}.workspace-main>.panel{border-radius:13px}.mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.97);border-top:1px solid #d9e2ee;padding:6px 4px max(6px,env(safe-area-inset-bottom));box-shadow:0 -5px 18px rgba(23,32,51,.12)}.mobile-nav button{padding:5px 1px;background:transparent;border-radius:8px;color:#667085;font-size:10px;display:grid;justify-items:center;gap:2px}.mobile-nav button.active{background:#fff1f2;color:#9f1239}.mobile-nav .nav-step{width:25px;height:25px;border-radius:8px}.workspace-actions{padding:10px 2px}.workspace-actions button{min-width:0;flex:1}.section{padding:13px}}
   `;
   document.head.appendChild(style);
 
