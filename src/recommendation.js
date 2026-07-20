@@ -4,6 +4,7 @@
 
   const JAPAN = ['TYO','NRT','HND','OSA','KIX','UKB','NGO','SPK','CTS','HKD','FUK','OKA','SDJ','AOJ','AKJ','AXT','TOY','KMJ','KOJ'];
   const SOUTHEAST_ASIA = ['BKK','CNX','HKT','USM','DAD','HAN','SGN','PQC','SIN','KUL','BKI','PEN','DPS','CGK','MNL','CEB','PNH','RGN','BWN','VTE'];
+  const ALL_SYNC_REGIONS = ['日本','韓國','東南亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲'];
   const REGION_CODES = {
     '日本':JAPAN, '北海道':['SPK','CTS','HKD','AKJ'], '東京':['TYO','NRT','HND'], '大阪':['OSA','KIX'], '九州':['FUK','KMJ','KOJ'],
     '韓國':['SEL','ICN','PUS','CJU'], '東南亞':SOUTHEAST_ASIA, '泰國':['BKK','CNX','HKT','USM'], '曼谷':['BKK'],
@@ -38,6 +39,11 @@
   function sixMonthRange(base = new Date()) {
     const from = new Date(base.getFullYear(), base.getMonth(), base.getDate());
     const to = new Date(from); to.setMonth(to.getMonth() + 6);
+    return { from:localDate(from), to:localDate(to) };
+  }
+  function oneYearRange(base = new Date()) {
+    const from = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    const to = new Date(from); to.setFullYear(to.getFullYear() + 1);
     return { from:localDate(from), to:localDate(to) };
   }
   function expandKeyword(word) {
@@ -196,7 +202,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, ALL_SYNC_REGIONS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -240,12 +246,15 @@
 
   const syncButton = $('syncBesttour');
   if (syncButton) {
+    const allSyncButton = document.createElement('button');
+    allSyncButton.id = 'syncAllBesttour'; allSyncButton.type = 'button'; allSyncButton.className = 'primary'; allSyncButton.textContent = '一次同步全部行程';
+    syncButton.insertAdjacentElement('beforebegin', allSyncButton);
     const stopButton = document.createElement('button');
     stopButton.id = 'stopSync'; stopButton.type = 'button'; stopButton.textContent = '停止同步'; stopButton.disabled = true;
     syncButton.insertAdjacentElement('afterend', stopButton);
-    let stopRequested = false;
+    let stopRequested = false, allSyncActive = false, allSyncCancelled = false;
     stopButton.addEventListener('click', () => {
-      stopRequested = true; stopButton.disabled = true; stopButton.textContent = '停止中…';
+      stopRequested = true; allSyncCancelled = true; stopButton.disabled = true; stopButton.textContent = '停止中…';
       const status = $('syncStatus'); status.className = 'status show warn'; status.textContent = '正在完成並儲存目前這一批，完成後就會停止。';
     });
     const today = new Date();
@@ -256,10 +265,32 @@
     if (quickRegions) quickRegions.addEventListener('click', event => {
       const button = event.target.closest('button[data-region]');
       if (!button || syncButton.disabled) return;
-      const range = sixMonthRange(new Date());
+      const range = oneYearRange(new Date());
       $('syncKeyword').value = button.dataset.region;
       $('syncDateFrom').value = range.from; $('syncDateTo').value = range.to; $('syncLimit').value = '5000';
       syncButton.click();
+    });
+    allSyncButton.addEventListener('click', async () => {
+      if (allSyncActive || syncButton.disabled) return;
+      allSyncActive = true; allSyncCancelled = false; allSyncButton.disabled = true;
+      const range = sixMonthRange(new Date());
+      $('syncDateFrom').value = range.from; $('syncDateTo').value = range.to; $('syncLimit').value = '5000';
+      for (let index = 0; index < ALL_SYNC_REGIONS.length; index++) {
+        if (allSyncCancelled) break;
+        const region = ALL_SYNC_REGIONS[index];
+        $('syncKeyword').value = region;
+        const status = $('syncStatus'); status.className = 'status show warn';
+        status.textContent = `全部同步進度 ${index + 1}/${ALL_SYNC_REGIONS.length}：正在下載${region}行程…`;
+        syncButton.click();
+        await new Promise(resolve => {
+          const timer = setInterval(() => { if (!syncButton.disabled) { clearInterval(timer); resolve(); } }, 250);
+        });
+      }
+      const database = (() => { try { return JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) { return []; } })();
+      const status = $('syncStatus');
+      status.className = 'status show ' + (allSyncCancelled ? 'warn' : 'ok');
+      status.textContent = allSyncCancelled ? `全部同步已停止，目前資料庫共有 ${database.length} 團。` : `全部地區同步完成，資料庫共有 ${database.length} 團（重複團號已自動合併）。`;
+      allSyncActive = false; allSyncButton.disabled = false;
     });
     syncButton.addEventListener('click', async () => {
       const keyword = $('syncKeyword').value.trim();
@@ -270,7 +301,8 @@
       const fingerprint = JSON.stringify({ keyword, from:$('syncDateFrom').value, to:$('syncDateTo').value, limit });
       let checkpoint = null;
       try { checkpoint = JSON.parse(localStorage.getItem('travelSyncCheckpoint') || 'null'); } catch (_) {}
-      if (!checkpoint || checkpoint.fingerprint !== fingerprint) checkpoint = { fingerprint, nextPage:1, processed:0, added:0, updated:0 };
+      if (!checkpoint || checkpoint.fingerprint !== fingerprint) checkpoint = { fingerprint, nextPage:1, processed:0, added:0, updated:0, skipped:0 };
+      checkpoint.skipped = Number(checkpoint.skipped) || 0;
       syncButton.disabled = true; syncButton.textContent = checkpoint.processed ? '繼續同步中…' : '正在讀取 Besttour…';
       $('syncProgressBox').style.display = 'block';
       status.className = 'status show warn'; status.textContent = checkpoint.processed ? `從上次的 ${checkpoint.processed} 團後繼續…` : '正在分批同步官網行程，每批會立即儲存…';
@@ -290,7 +322,11 @@
             const parsed = global.TravelAssistantParser && global.TravelAssistantParser.parseTourCode(trip.code);
             if (parsed && parsed.airline) trip.airline = parsed.airline.replace('（舊代碼）','');
             const old = byCode.get(trip.code);
-            if (old) { byCode.set(trip.code, mergeOfficialTrip(old, trip)); checkpoint.updated++; }
+            if (old) {
+              const changed = ['title','mainTitle','price','dates','seats','airline','destination','url'].some(key => String(old[key] ?? '') !== String(trip[key] ?? ''));
+              if (changed) { byCode.set(trip.code, mergeOfficialTrip(old, trip)); checkpoint.updated++; }
+              else checkpoint.skipped++;
+            }
             else { byCode.set(trip.code, trip); checkpoint.added++; }
           });
           checkpoint.processed += rows.length; checkpoint.nextPage++;
@@ -299,7 +335,7 @@
           const percent = Math.min(99, Math.round(checkpoint.processed / Math.max(1, limit) * 100));
           $('syncProgress').value = percent; $('syncProgressPercent').textContent = percent + '%';
           $('syncProgressText').textContent = `已儲存 ${checkpoint.processed} 團，正在讀取第 ${checkpoint.nextPage} 批…`;
-          status.textContent = `同步中：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團。`;
+          status.textContent = `同步中：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團、略過未變更 ${checkpoint.skipped} 團。`;
           if (stopRequested) { stopped = true; break; }
           const maxPages = officialPages || 100;
           completed = !payload.data.hasMore || checkpoint.processed >= limit || checkpoint.nextPage > Math.min(100, maxPages);
@@ -315,7 +351,7 @@
         $('syncProgress').value = 100; $('syncProgressPercent').textContent = '100%'; $('syncProgressText').textContent = '同步完成';
         if (typeof global.renderDb === 'function') global.renderDb();
         status.className = 'status show ok';
-        status.textContent = `同步完成：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團，共處理 ${checkpoint.processed} 團。`;
+        status.textContent = `同步完成：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團、略過未變更 ${checkpoint.skipped} 團，共檢查 ${checkpoint.processed} 團。`;
       } catch (error) {
         localStorage.setItem('travelSyncCheckpoint', JSON.stringify(checkpoint));
         status.className = 'status show err'; status.textContent = error.message + ` 已保留進度（${checkpoint.processed} 團），稍後再按一次「從 Besttour 官網同步」即可繼續。`;
