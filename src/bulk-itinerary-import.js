@@ -58,9 +58,10 @@
         finally{activeControllers.delete(controller);completed+=1;const percent=Math.round((completed/entries.length)*100);progressBar.value=percent;progressPercent.textContent=`${percent}%`;progressLabel.textContent=`已完成 ${completed} / ${entries.length} 團`;status.textContent=`已完成 ${completed} / ${entries.length} 團`}
       }));
       let database=[];try{database=JSON.parse(localStorage.getItem('travelV10Db')||'[]')}catch(_){}
-      localStorage.setItem('travelV10Db',JSON.stringify(mergeRecords(database,saved)));global.renderDb?.();
+      localStorage.setItem('travelV10Db',JSON.stringify(mergeRecords(database,saved)));
       progressLabel.textContent=stopped?`已停止，共處理 ${completed} / ${entries.length} 團`:`匯入完成，共處理 ${entries.length} 團`;status.textContent=`${stopped?'批次匯入已停止':'批次匯入完成'}：成功 ${saved.length} 團，失敗 ${failed.length} 團。${failed.length?' 失敗項目：'+failed.join('；'):''}`;status.className='status show '+(failed.length||stopped?'warn':'ok');button.disabled=false;stopButton.disabled=true;
       renderImported(saved);if(saved.length){applyRecord(saved[0]);status.textContent+=` 已自動載入 ${saved[0].code} 並產生文案，請按「下一步」查看。`}
+      setTimeout(()=>global.renderDb?.(),0);
     };
     singleButton.addEventListener('click',event=>{const codes=[codeInput?.value,...document.querySelectorAll('.extra-tour-code')].map(item=>clean(item&&item.value!==undefined?item.value:item)).filter(Boolean);if(codes.length<=1)return;event.preventDefault();event.stopImmediatePropagation();document.getElementById('bulkItineraryInput').value=codes.join('\n');panel.style.display='block';toggle.textContent='收起批次匯入';document.getElementById('runBulkImport').click()},true);
   }
