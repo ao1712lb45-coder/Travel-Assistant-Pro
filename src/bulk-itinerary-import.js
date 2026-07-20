@@ -15,10 +15,18 @@
     records.forEach(record=>{const index=merged.findIndex(item=>(record.code&&item.code===record.code)||(!record.code&&(item.title||item.mainTitle)===(record.title||record.mainTitle)));if(index>=0)merged[index]={...merged[index],...record};else merged.unshift(record)});
     return merged;
   }
-  function joinBatchMaterials(items){
-    const outputIds=['lineOut','fbOut','threadsOut','edmOut','committeeOut','videoOut'],joined={};
-    outputIds.forEach(id=>{joined[id]=items.map(({record,outputs},index)=>`━━━━━━━━ 第 ${index+1} 團｜${record.code} ━━━━━━━━\n\n${outputs[id]||''}`.trim()).join('\n\n\n')});
-    return joined;
+  function joinBatchMaterials(items,options={}){
+    const count=items.length,contact=[options.contact,options.line?`LINE ${options.line}`:''].filter(Boolean).join('\n');
+    const trips=items.map(({record},index)=>{const highlights=(record.highlights||[]).slice(0,5).map(item=>`✅ ${item}`).join('\n');return`【${index+1}｜${record.title||record.mainTitle||record.code}】\n團號：${record.code}\n${highlights?`${highlights}\n`:''}${record.airline?`✈️ ${record.airline}\n`:''}${record.dates?`📅 ${record.dates}\n`:''}${record.price?`💰 ${record.price}\n`:''}${record.url?`🔗 ${record.url}`:''}`.trim()}).join('\n\n━━━━━━━━━━━━━━━━\n\n');
+    const ending=`\n\n以上行程的價格與機位會即時變動，想確認適合的日期，歡迎直接詢問。${contact?`\n\n${contact}`:''}`;
+    return {
+      lineOut:`✈️ 以下是我整理的 ${count} 個精選行程～\n可以一起比較日期、航空公司和價格：\n\n${trips}${ending}`,
+      fbOut:`【${count} 個精選行程一次整理】\n\n以下是近期值得比較的行程，已將主要亮點、日期與價格整理在一起：\n\n${trips}${ending}`,
+      threadsOut:`最近整理了 ${count} 個行程，給正在規劃旅行的人一次比較 ✈️\n\n${trips}${ending}`,
+      edmOut:`主旨：【旅遊行程整理】${count} 個精選方案一次比較\n\n您好，以下是為您整理的 ${count} 個行程方案：\n\n${trips}${ending}`,
+      committeeOut:`【企業福委／員工旅遊多團提案】\n\n以下整理 ${count} 個團體行程，可依員工人數、預算與希望日期進一步比較：\n\n${trips}${ending}`,
+      videoOut:`【多團行程推薦短影音腳本】\n\n0–3 秒｜開場\n字幕：${count} 個精選行程一次看\n旁白：以下是我整理的 ${count} 個行程，看看哪一團最適合你。\n\n${trips}${ending}`
+    };
   }
   function withTimeout(promise,milliseconds,onTimeout){
     let timer;const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{onTimeout?.();const error=new Error(`等待超過 ${Math.round(milliseconds/1000)} 秒`);error.name='TimeoutError';reject(error)},milliseconds)});
@@ -46,7 +54,7 @@
     toggle.onclick=()=>{const open=panel.style.display==='none';panel.style.display=open?'block':'none';toggle.textContent=open?'收起批次匯入':'批次匯入多團'};
     let activeControllers=new Set(),stopped=false;
     const applyRecord=record=>{const values={url:record.url,tourCodeInput:record.code,code:record.code,days:record.days,mainTitle:record.mainTitle||record.title,subtitle:record.subtitle,price:record.price,airline:record.airline,dates:record.dates,highlights:(record.highlights||[]).join('\n'),rawText:record.raw};Object.entries(values).forEach(([id,value])=>{const field=document.getElementById(id);if(field)field.value=value||''});document.getElementById('generateCopy')?.click()};
-    const generateBatchMaterials=records=>{const outputIds=['lineOut','fbOut','threadsOut','edmOut','committeeOut','videoOut'];const items=records.map(record=>{applyRecord(record);const outputs={};outputIds.forEach(id=>{outputs[id]=document.getElementById(id)?.value||''});return{record,outputs}}),joined=joinBatchMaterials(items);Object.entries(joined).forEach(([id,value])=>{const field=document.getElementById(id);if(field)field.value=value});return items.length};
+    const generateBatchMaterials=records=>{const outputIds=['lineOut','fbOut','threadsOut','edmOut','committeeOut','videoOut'];const items=records.map(record=>{applyRecord(record);const outputs={};outputIds.forEach(id=>{outputs[id]=document.getElementById(id)?.value||''});return{record,outputs}}),joined=joinBatchMaterials(items,{contact:document.getElementById('contact')?.value.trim(),line:document.getElementById('line')?.value.trim()});Object.entries(joined).forEach(([id,value])=>{const field=document.getElementById(id);if(field)field.value=value});return items.length};
     const renderImported=records=>{const box=document.getElementById('bulkImportedResults');box.innerHTML='';records.forEach(record=>{const row=document.createElement('div');row.className='dbitem';const info=document.createElement('div'),heading=document.createElement('b'),meta=document.createElement('div');heading.textContent=`${record.code}｜${record.title}`;meta.className='dbmeta';meta.textContent=[record.dates,record.price,record.airline].filter(Boolean).join('・');info.append(heading,meta);const button=document.createElement('button');button.type='button';button.textContent='載入並產生文案';button.onclick=()=>{applyRecord(record);document.getElementById('bulkImportProgress').textContent=`已載入 ${record.code} 並產生文案，請按「下一步」查看。`;document.getElementById('bulkImportProgress').className='status show ok'};row.append(info,button);box.appendChild(row)})};
     document.getElementById('stopBulkImport').onclick=()=>{stopped=true;activeControllers.forEach(controller=>controller.abort())};
     document.getElementById('clearBulkImport').onclick=()=>{document.getElementById('bulkItineraryInput').value='';document.getElementById('bulkImportProgress').className='status';document.getElementById('bulkProgressBox').style.display='none';document.getElementById('bulkImportedResults').innerHTML=''};
