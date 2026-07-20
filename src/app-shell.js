@@ -7,7 +7,7 @@
   const sections = Array.from(panel.querySelectorAll(':scope > .section'));
   if (sections.length < 10) return;
   const crmSection = document.getElementById('crmSection');
-  const enterpriseSection = document.getElementById('enterpriseSection');
+  const enterpriseSection = document.getElementById('enterpriseProposalSection');
   const assistantSection = document.getElementById('searchAssistantSection');
   if (!crmSection || !enterpriseSection || !assistantSection) return;
 
