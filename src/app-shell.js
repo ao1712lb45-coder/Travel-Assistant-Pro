@@ -9,10 +9,11 @@
   const views = [
     { id:'start', label:'匯入行程', icon:'1', sections:sections.slice(0,2), help:'輸入團號或網址，自動抓取並解析官方行程。' },
     { id:'trip', label:'確認行程', icon:'2', sections:[sections[2]], help:'確認名稱、價格、日期、航空公司與行程亮點。' },
-    { id:'copy', label:'社群文案', icon:'3', sections:[sections[3]], help:'產生 LINE、Facebook 與 Threads 文案。' },
+    { id:'copy', label:'行銷素材', icon:'3', sections:[sections[3]], help:'一鍵產生 LINE、Facebook、Threads、EDM、福委提案與短影音腳本。' },
     { id:'check', label:'發布檢查', icon:'4', sections:[sections[4]], help:'發布前確認必要資料與網址格式。' },
     { id:'match', label:'客戶配對', icon:'5', sections:[sections[5]], help:'依地區、預算、月份與完整行程內容搜尋合適團體。' },
-    { id:'database', label:'行程資料庫', icon:'6', sections:[sections[6]], help:'同步、搜尋、匯入與備份行程資料。' }
+    { id:'database', label:'行程資料庫', icon:'6', sections:[sections[6]], help:'同步、搜尋、匯入與備份行程資料。' },
+    { id:'crm', label:'客戶 CRM', icon:'7', sections:[sections[7]], help:'記錄客戶喜好與避開條件，快速檢查行程適配度。' }
   ];
 
   const style = document.createElement('style');
@@ -35,7 +36,7 @@
   const workspace=document.createElement('div'),nav=document.createElement('aside'),main=document.createElement('main'),toolbar=document.createElement('div'),actions=document.createElement('div'),mobileNav=document.createElement('nav');
   workspace.className='workspace';nav.className='workspace-nav';main.className='workspace-main';toolbar.className='workspace-toolbar';actions.className='workspace-actions';mobileNav.className='mobile-nav';
   nav.setAttribute('aria-label','主要功能');mobileNav.setAttribute('aria-label','手機功能列');
-  nav.innerHTML='<div class="workspace-brand"><strong>工作流程</strong><span>完成行程解析、社群文案、客戶配對與資料庫管理。</span></div>';
+  nav.innerHTML='<div class="workspace-brand"><strong>V2.0 工作流程</strong><span>完成行程解析、行銷素材、客戶配對與資料庫管理。</span></div>';
   toolbar.innerHTML='<div><h2 id="workspaceTitle"></h2><p id="workspaceHelp"></p></div><span id="workspaceProgress" class="workspace-progress"></span>';
   actions.innerHTML='<button id="workspacePrev">← 上一步</button><button id="workspaceNext" class="next">下一步 →</button>';
   panel.parentElement.insertBefore(workspace,panel);workspace.append(nav,main);main.append(toolbar,panel,actions);document.body.appendChild(mobileNav);panel.dataset.workspaceReady='true';

@@ -33,7 +33,10 @@ test('online deployment protects the app but leaves health checks available', as
     const authorized = await fetch(`${base}/`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(authorized.status, 200);
     const page = await authorized.text();
-    assert.match(page, /旅遊助手V1\.0/);
+    assert.match(page, /marketing-suite\.js/);
+    assert.match(page, /crm\.js/);
+    assert.match(page, /v2-ui\.js/);
+    assert.ok(page.indexOf('crm.js') < page.indexOf('app-shell.js'), 'CRM must load before the workspace reads its sections');
     assert.match(page, /id="regenLine">換一篇 LINE/);
     assert.match(page, /id="regenFacebook">換一篇 Facebook/);
     assert.match(page, /id="quickRegionSync"/);
