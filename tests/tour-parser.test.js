@@ -26,6 +26,17 @@ test('CI remains China Airlines', () => {
   assert.equal(result.airline, '中華航空');
 });
 
+test('SL airline code is Thai Lion Air and wins over conflicting page text', () => {
+  const byCode = parser.parseTourCode('BKK05SL261111SM');
+  assert.equal(byCode.airlineCode, 'SL');
+  assert.equal(byCode.airline, '泰國獅子航空');
+  const result = parser.parse({
+    url: 'https://www.besttour.com.tw/itinerary/BKK05SL261111SM',
+    text: '團號 BKK05SL261111SM\n參考航班\n中華航空 CI123\n最低售價 25,800元起\n出發日期 2026/11/11'
+  });
+  assert.equal(result.airline, '泰國獅子航空');
+});
+
 test('BX airline code is Air Busan', () => {
   const result = parser.parseTourCode('PUS05BX261002J');
   assert.equal(result.airlineCode, 'BX');
