@@ -8,6 +8,15 @@ test('one-click region sync covers today through six months later',()=>{
   assert.deepEqual(matcher.sixMonthRange(new Date(2026,6,18)),{from:'2026-07-18',to:'2027-01-18'});
 });
 
+test('all-trip sync covers today through one year later', () => {
+  assert.deepEqual(matcher.oneYearRange(new Date(2026,6,20)), { from:'2026-07-20', to:'2027-07-20' });
+});
+
+test('all-trip sync covers every quick region without duplicates', () => {
+  assert.deepEqual(matcher.ALL_SYNC_REGIONS, ['日本','韓國','東南亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲']);
+  assert.equal(new Set(matcher.ALL_SYNC_REGIONS).size, matcher.ALL_SYNC_REGIONS.length);
+});
+
 const trips = [
   { code:'SPK06FD261105AB', title:'楓紅輕旅北海道６日', price:'32,800元起', dates:'10/16、11/5', airline:'泰國亞洲航空', highlights:['紅葉','溫泉'] },
   { code:'TYO05JX261111SM', title:'東京迪士尼５日', price:'39,900元起', dates:'11/11', airline:'星宇航空', highlights:['親子','迪士尼'] },
