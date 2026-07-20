@@ -49,6 +49,8 @@
     });
     const generate = document.getElementById('generateCopy');
     generate.textContent = '一鍵產生全部素材';
+    const heading = section.querySelector('h2');
+    if (heading) heading.textContent = '步驟 4｜一鍵產生行銷素材';
     const readData = () => ({
       url:document.getElementById('url').value.trim(), days:document.getElementById('days').value.trim(), title:document.getElementById('mainTitle').value.trim(), subtitle:document.getElementById('subtitle').value.trim(), price:document.getElementById('price').value.trim(), airline:document.getElementById('airline').value.trim(), dates:document.getElementById('dates').value.trim(), highlights:document.getElementById('highlights').value.split(/\r?\n/).map(clean).filter(Boolean), contact:document.getElementById('contact').value.trim(), line:document.getElementById('line').value.trim()
     });
@@ -61,6 +63,16 @@
       section.querySelectorAll('.output').forEach(item => { item.style.display = item.id === button.dataset.tab ? 'block' : 'none'; });
       global.currentTab = button.dataset.tab;
     });
+    document.getElementById('copyText').onclick = async () => {
+      const visible = Array.from(section.querySelectorAll('.output')).find(item => item.style.display !== 'none');
+      try {
+        await navigator.clipboard.writeText(visible ? visible.value : '');
+        const status = document.getElementById('copyStatus'); status.textContent = '已複製目前素材。'; status.className = 'status show ok';
+      } catch (_) {
+        const status = document.getElementById('copyStatus'); status.textContent = '瀏覽器未允許自動複製，請在文字框按 Ctrl+A、Ctrl+C。'; status.className = 'status show warn';
+      }
+    };
+    document.addEventListener('DOMContentLoaded', () => { generate.textContent = '一鍵產生全部素材'; render(); });
     render();
   }
 
