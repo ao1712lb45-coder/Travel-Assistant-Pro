@@ -11,6 +11,11 @@
     '沙美島':['BKK'], '越南':['DAD','HAN','SGN','PQC'], '新加坡':['SIN'], '馬來西亞':['KUL','BKI','PEN'],
     '印尼':['DPS','CGK'], '菲律賓':['MNL','CEB'], '中國':['PVG','PEK','CAN','CTU','KMG']
   };
+  const STRICT_DESTINATIONS = {
+    '印度':{codes:['DEL','BOM','MAA','BLR','CCU','COK','JAI','VNS','ATQ'],terms:['印度共和國']},
+    '印尼':{codes:['DPS','CGK','BTH','SUB','JOG'],terms:['印尼','印度尼西亞','峇里島','巴里島','民丹島']},
+    '印度尼西亞':{codes:['DPS','CGK','BTH','SUB','JOG'],terms:['印尼','印度尼西亞','峇里島','巴里島','民丹島']}
+  };
   const KEYWORD_ALIASES = {
     '人妖':['人妖','人妖秀','變性人秀','蒂芬妮','tiffany','阿卡薩','alcazar','卡里普索','calypso'],
     '人妖秀':['人妖','人妖秀','變性人秀','蒂芬妮','tiffany','阿卡薩','alcazar','卡里普索','calypso'],
@@ -73,6 +78,11 @@
   function destinationMatches(trip, wanted) {
     const value = String(wanted || '').trim();
     if (!value) return true;
+    const strict = STRICT_DESTINATIONS[value];
+    if (strict) {
+      const code=String(trip.code||'').toUpperCase(),identity=[trip.title,trip.mainTitle,trip.destination].join(' ').toLowerCase();
+      return strict.codes.some(prefix=>code.startsWith(prefix)) || strict.terms.some(term=>identity.includes(term.toLowerCase()));
+    }
     if (tripText(trip).includes(value.toLowerCase())) return true;
     const codes = REGION_CODES[value] || [];
     return codes.some(code => String(trip.code || '').toUpperCase().startsWith(code));
@@ -206,7 +216,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, ALL_SYNC_REGIONS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, STRICT_DESTINATIONS, ALL_SYNC_REGIONS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, expandKeyword, profileSearchTerms, numberFrom, destinationMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');

@@ -40,6 +40,17 @@ test('broad Japan destination includes Hokkaido and Tokyo', () => {
   assert.deepEqual(result.map(item => item.trip.code).sort(), ['SPK06FD261105AB','TYO05JX261111SM']);
 });
 
+test('India destination does not match Singapore Little India attractions', () => {
+  const options=[
+    {code:'SIN05BR260831E',title:'超值新加坡半自助5日',destination:'新加坡',highlights:['魚尾獅','小印度','濱海灣花園']},
+    {code:'DEL08BR261201A',title:'印度金三角八日',destination:'印度',highlights:['泰姬瑪哈陵']},
+    {code:'SIN05BR261210B',title:'新加坡民丹島五日',destination:'新加坡／印尼',highlights:['民丹島']}
+  ];
+  assert.deepEqual(matcher.rankTrips(options,{destination:'印度'}).map(item=>item.trip.code),['DEL08BR261201A']);
+  assert.deepEqual(matcher.rankTrips(options,{destination:'印尼'}).map(item=>item.trip.code),['SIN05BR261210B']);
+  assert.deepEqual(matcher.rankTrips(options,{destination:'民丹島'}).map(item=>item.trip.code),['SIN05BR261210B']);
+});
+
 test('senior-friendly preference raises relaxed itineraries and avoids stairs or slopes when requested', () => {
   const options = [
     { code:'FUK05BR261101AA', title:'九州慢遊溫泉五日', price:'35,000元起', dates:'11/1', highlights:['溫泉','觀光列車','遊船'] },
