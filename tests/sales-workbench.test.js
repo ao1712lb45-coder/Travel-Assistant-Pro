@@ -39,7 +39,7 @@ test('recognizes next January and an unspecified party of four',()=>{
   assert.equal(result.month,1);
   assert.equal(result.totalPeople,4);
   assert.equal(result.adults,null);
-  assert.ok(result.missing.includes('大人、兒童與嬰兒人數'));
+  assert.ok(!result.missing.some(item=>/人數|大人|兒童/.test(item)));
 });
 
 test('recognizes upcoming Lunar New Year and Taiwan holiday aliases',()=>{
@@ -50,6 +50,15 @@ test('recognizes upcoming Lunar New Year and Taiwan holiday aliases',()=>{
   assert.equal(request.requestedYear,2027);
   assert.ok(!request.missing.some(item=>item.includes('日期')));
   assert.deepEqual(parseCustomerMessage('想找雙十連假去日本',new Date(2026,6,20)).dates,['2026-10-09','2026-10-11']);
+});
+
+test('recognizes a day range without treating it as an April date and accepts total people',()=>{
+  const request=parseCustomerMessage('我過年想找日本含星都可 4位 預算10萬/人 4-10天皆可 跟團',new Date(2026,6,20));
+  assert.deepEqual(request.dates,['2027-02-05','2027-02-11']);
+  assert.equal(request.minDays,4);
+  assert.equal(request.maxDays,10);
+  assert.equal(request.days,null);
+  assert.ok(!request.missing.some(item=>/人數|大人|兒童|小孩/.test(item)));
 });
 
 test('comparison never invents unknown operational fields',()=>{
