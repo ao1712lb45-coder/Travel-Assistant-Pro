@@ -18,6 +18,15 @@
   function install(){
     if(typeof document==='undefined'||document.getElementById('bulkImportPanel'))return;
     const singleButton=document.getElementById('fetchBesttour'),url=document.getElementById('url');if(!singleButton||!url)return;
+    const codeInput=document.getElementById('tourCodeInput'),codeHost=codeInput?.parentElement;
+    if(codeInput&&codeHost){
+      const firstRow=document.createElement('div');firstRow.className='tour-code-row';codeHost.insertBefore(firstRow,codeInput);firstRow.appendChild(codeInput);
+      const addCode=document.createElement('button');addCode.id='addTourCodeField';addCode.type='button';addCode.textContent='＋ 增加團號欄位';firstRow.appendChild(addCode);
+      const extraCodes=document.createElement('div');extraCodes.id='extraTourCodeFields';codeHost.appendChild(extraCodes);
+      const addField=()=>{const count=1+extraCodes.querySelectorAll('.extra-tour-code').length;if(count>=7)return;const row=document.createElement('div');row.className='tour-code-row';row.innerHTML=`<input class="extra-tour-code" aria-label="團號 ${count+1}" placeholder="團號 ${count+1}"><button type="button" class="remove-tour-code">移除</button>`;const input=row.querySelector('input');input.oninput=()=>{input.value=input.value.toUpperCase().replace(/[^A-Z0-9]/g,'')};row.querySelector('button').onclick=()=>{row.remove();addCode.disabled=false};extraCodes.appendChild(row);addCode.disabled=1+extraCodes.querySelectorAll('.extra-tour-code').length>=7};
+      addCode.onclick=addField;addField();
+      const style=document.createElement('style');style.textContent=`.tour-code-row{display:flex;gap:7px;align-items:center;margin-bottom:7px}.tour-code-row input{flex:1;min-width:0}.tour-code-row button{white-space:nowrap}.remove-tour-code{padding:9px 10px}@media(max-width:600px){.tour-code-row{align-items:stretch;flex-wrap:wrap}.tour-code-row input{flex:1 1 180px}}`;document.head.appendChild(style);
+    }
     const toggle=document.createElement('button');toggle.id='toggleBulkImport';toggle.type='button';toggle.textContent='批次匯入多團';singleButton.parentElement.appendChild(toggle);
     const panel=document.createElement('div');panel.id='bulkImportPanel';panel.style.display='none';panel.innerHTML=`<div class="hint" style="margin-top:10px"><b>批次匯入多團</b><br>每行貼一個團號或網址，也可用空格、逗號分隔；一次最多 50 團。成功資料會直接存入行程資料庫。</div><textarea id="bulkItineraryInput" placeholder="例如：\nASB07BR261226DW\nPUS05BX261002J\nhttps://www.besttour.com.tw/itinerary/FUK05BR261206FU" style="min-height:150px;margin-top:8px"></textarea><div class="btnrow"><button class="primary" id="runBulkImport">開始批次匯入</button><button id="clearBulkImport">清除</button></div><div id="bulkImportProgress" class="status"></div>`;
     document.getElementById('urlFetchStatus').insertAdjacentElement('afterend',panel);
@@ -35,6 +44,7 @@
       localStorage.setItem('travelV10Db',JSON.stringify(mergeRecords(database,saved)));global.renderDb?.();
       status.textContent=`批次匯入完成：成功 ${saved.length} 團，失敗 ${failed.length} 團。${failed.length?' 失敗項目：'+failed.join('；'):''}`;status.className='status show '+(failed.length?'warn':'ok');button.disabled=false;
     };
+    singleButton.addEventListener('click',event=>{const codes=[codeInput?.value,...document.querySelectorAll('.extra-tour-code')].map(item=>clean(item&&item.value!==undefined?item.value:item)).filter(Boolean);if(codes.length<=1)return;event.preventDefault();event.stopImmediatePropagation();document.getElementById('bulkItineraryInput').value=codes.join('\n');panel.style.display='block';toggle.textContent='收起批次匯入';document.getElementById('runBulkImport').click()},true);
   }
   if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install()}
   return {parseBulkEntries,recordFromResult,mergeRecords,install};

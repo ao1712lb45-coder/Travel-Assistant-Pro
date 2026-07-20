@@ -44,6 +44,12 @@ test('online deployment protects the app but leaves health checks available', as
     const marketingScript = await marketing.text();
     assert.match(marketingScript, /一鍵產生全部素材/);
     assert.match(marketingScript, /已複製目前素材/);
+    const bulkImport = await fetch(`${base}/src/bulk-itinerary-import.js`, { headers:{ authorization:basic('team','secret') } });
+    assert.equal(bulkImport.status, 200);
+    const bulkImportScript = await bulkImport.text();
+    assert.match(bulkImportScript, /addTourCodeField/);
+    assert.match(bulkImportScript, /count>=7/);
+    assert.match(bulkImportScript, /extra-tour-code/);
     assert.match(page, /data-tab="lineOut">社群文案/);
     assert.match(page, /id="regenLine">換一篇文案/);
     assert.doesNotMatch(page, /data-tab="fbOut">Facebook/);
