@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { cloudConfig, upsertTrips } = require('../cloud-store');
+const { cloudConfig, readTrips, upsertTrips } = require('../cloud-store');
 
 test('cloud configuration requires both URL and secret key', () => {
   assert.equal(cloudConfig({}).configured, false);
@@ -39,4 +39,14 @@ test('new Supabase secret keys use the apikey header without an invalid bearer t
   );
   assert.equal(headers.apikey, 'sb_secret_example');
   assert.equal(headers.authorization, undefined);
+});
+
+test('Supabase error details are preserved without exposing request credentials', async () => {
+  await assert.rejects(
+    readTrips(
+      { url:'https://sample.supabase.co', key:'sb_secret_hidden', configured:true },
+      async () => ({ ok:false, status:403, text:async()=>JSON.stringify({ message:'Invalid API key' }) })
+    ),
+    error => error.code==='CLOUD_REQUEST_FAILED' && /Invalid API key/.test(error.message) && !/sb_secret_hidden/.test(error.message)
+  );
 });

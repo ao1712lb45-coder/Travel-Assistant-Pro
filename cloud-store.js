@@ -19,7 +19,11 @@ async function request(config, pathname, options = {}, fetchImpl = fetch) {
     headers:{ ...authHeaders, accept:'application/json', ...(options.headers || {}) }
   });
   const raw = await response.text();
-  if (!response.ok) throw new CloudStoreError('CLOUD_REQUEST_FAILED', `Supabase 回傳 HTTP ${response.status}。`, 502);
+  if (!response.ok) {
+    let detail='';
+    try { const payload=JSON.parse(raw); detail=String(payload.message||payload.error_description||payload.error||payload.msg||'').slice(0,200); } catch {}
+    throw new CloudStoreError('CLOUD_REQUEST_FAILED', `Supabase 回傳 HTTP ${response.status}${detail?`：${detail}`:''}。`, 502);
+  }
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { throw new CloudStoreError('CLOUD_INVALID_RESPONSE', 'Supabase 回傳資料格式錯誤。', 502); }
 }
