@@ -37,9 +37,11 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(page, /enterprise-proposal\.js/);
     assert.match(page, /bulk-itinerary-import\.js/);
     assert.match(page, /search-assistant\.js/);
+    assert.match(page, /cloud-database\.js/);
     assert.match(page, /crm\.js/);
     assert.match(page, /v2-ui\.js/);
     assert.ok(page.indexOf('crm.js') < page.indexOf('app-shell.js'), 'CRM must load before the workspace reads its sections');
+    assert.ok(page.indexOf('cloud-database.js') < page.indexOf('app-shell.js'), 'cloud database must load before the workspace starts');
     const marketing = await fetch(`${base}/src/marketing-suite.js`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(marketing.status, 200);
     const marketingScript = await marketing.text();

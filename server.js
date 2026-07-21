@@ -4,6 +4,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { CloudStoreError, cloudConfig, readTrips, upsertTrips, createSnapshot } = require('./cloud-store');
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
@@ -310,6 +311,15 @@ function sendJson(res, status, body) {
   res.end(data);
 }
 
+function readJsonBody(req, maxBytes = 8 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks=[]; let size=0;
+    req.on('data', chunk => { size += chunk.length; if (size > maxBytes) { reject(new FetchError('BODY_TOO_LARGE','同步資料量過大，請分批上傳。',413)); req.destroy(); return; } chunks.push(chunk); });
+    req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { reject(new FetchError('INVALID_JSON','同步資料格式錯誤。',400)); } });
+    req.on('error', reject);
+  });
+}
+
 function safeEqual(left, right) {
   const a = Buffer.from(String(left || ''));
   const b = Buffer.from(String(right || ''));
@@ -350,7 +360,7 @@ function serveFile(res, pathname) {
   if (!target.startsWith(ROOT + path.sep) || !fs.existsSync(target) || fs.statSync(target).isDirectory()) return false;
   let data = fs.readFileSync(target);
   if (relative === 'index.html') {
-    const injection = '<script src="/src/tour-parser.js"></script><script src="/src/besttour-url-fetch.js"></script><script src="/src/bulk-itinerary-import.js"></script><script src="/src/recommendation.js"></script><script src="/src/sales-workbench.js"></script><script src="/src/copy-generator.js"></script><script src="/src/marketing-suite.js"></script><script src="/src/crm.js"></script><script src="/src/business-enhancements.js"></script><script src="/src/enterprise-proposal.js"></script><script src="/src/search-assistant.js"></script><script src="/src/app-shell.js"></script><script src="/src/v2-ui.js"></script>';
+    const injection = '<script src="/src/tour-parser.js"></script><script src="/src/besttour-url-fetch.js"></script><script src="/src/bulk-itinerary-import.js"></script><script src="/src/recommendation.js"></script><script src="/src/sales-workbench.js"></script><script src="/src/copy-generator.js"></script><script src="/src/marketing-suite.js"></script><script src="/src/crm.js"></script><script src="/src/business-enhancements.js"></script><script src="/src/enterprise-proposal.js"></script><script src="/src/search-assistant.js"></script><script src="/src/cloud-database.js"></script><script src="/src/app-shell.js"></script><script src="/src/v2-ui.js"></script>';
     data = Buffer.from(data.toString('utf8').replace('</body>', injection + '</body>'));
   }
   const types = { '.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg' };
@@ -360,6 +370,7 @@ function serveFile(res, pathname) {
 
 function createServer(options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
+  const supabase = options.supabase || cloudConfig();
   const appUser = options.appUser !== undefined ? options.appUser : (process.env.APP_USER || 'team');
   const appPassword = options.appPassword !== undefined ? options.appPassword : (process.env.APP_PASSWORD || '');
   return http.createServer(async (req, res) => {
@@ -385,10 +396,21 @@ function createServer(options = {}) {
           String(requestUrl.searchParams.get('codes') || '').split(','), String(requestUrl.searchParams.get('keywords') || '').split(','), fetchImpl
         ) });
       }
+      if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/database') {
+        return sendJson(res, 200, { ok:true, data:{ configured:supabase.configured, trips:supabase.configured ? await readTrips(supabase,fetchImpl) : [] } });
+      }
+      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/database/sync') {
+        const body=await readJsonBody(req),trips=Array.isArray(body.trips)?body.trips:[];
+        if (trips.length > 250) throw new FetchError('TOO_MANY_TRIPS','每次最多同步 250 團。',400);
+        return sendJson(res, 200, { ok:true, data:await upsertTrips(supabase,trips,fetchImpl) });
+      }
+      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/database/snapshot') {
+        return sendJson(res, 200, { ok:true, data:await createSnapshot(supabase,fetchImpl) });
+      }
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });
     } catch (error) {
-      const known = error instanceof FetchError;
+      const known = error instanceof FetchError || error instanceof CloudStoreError;
       sendJson(res, known ? error.status : 500, { ok: false, error: { code: known ? error.code : 'INTERNAL_ERROR', message: known ? error.message : '系統發生未預期錯誤。' } });
     }
   });
