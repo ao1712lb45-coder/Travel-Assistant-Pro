@@ -29,3 +29,14 @@ test('cloud upsert removes duplicate tour codes and keeps the latest occurrence'
   assert.deepEqual(rows.map(row => row.code), ['ABC','XYZ']);
   assert.equal(rows[0].data.title, 'new');
 });
+
+test('new Supabase secret keys use the apikey header without an invalid bearer token', async () => {
+  let headers;
+  await upsertTrips(
+    { url:'https://sample.supabase.co', key:'sb_secret_example', configured:true },
+    [{ code:'ABC' }],
+    async (_url, options) => { headers=options.headers; return { ok:true, status:201, text:async()=>'' }; }
+  );
+  assert.equal(headers.apikey, 'sb_secret_example');
+  assert.equal(headers.authorization, undefined);
+});

@@ -12,9 +12,11 @@ function cloudConfig(source = process.env) {
 
 async function request(config, pathname, options = {}, fetchImpl = fetch) {
   if (!config.configured) throw new CloudStoreError('CLOUD_NOT_CONFIGURED', '雲端資料庫尚未完成設定。', 503);
+  const authHeaders = { apikey:config.key };
+  if (!config.key.startsWith('sb_secret_')) authHeaders.authorization = `Bearer ${config.key}`;
   const response = await fetchImpl(config.url + pathname, {
     ...options,
-    headers:{ apikey:config.key, authorization:`Bearer ${config.key}`, accept:'application/json', ...(options.headers || {}) }
+    headers:{ ...authHeaders, accept:'application/json', ...(options.headers || {}) }
   });
   const raw = await response.text();
   if (!response.ok) throw new CloudStoreError('CLOUD_REQUEST_FAILED', `Supabase 回傳 HTTP ${response.status}。`, 502);
