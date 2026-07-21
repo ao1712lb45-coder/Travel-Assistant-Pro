@@ -70,6 +70,18 @@ test('moves an unspecified past month or date into the next year',()=>{
   assert.equal(october.requestedYear,2026);
 });
 
+test('recognizes Italy from a customer LINE request',()=>{
+  const request=parseCustomerMessage('9月要去義大利 2人 跟團 桃園機場出發',new Date(2026,6,20));
+  assert.equal(request.destination,'義大利');
+  assert.equal(request.month,9);
+  assert.equal(request.requestedYear,2026);
+  assert.equal(request.totalPeople,2);
+  assert.deepEqual(request.airports,['桃園']);
+  assert.equal(request.travelType,'跟團');
+  assert.ok(!request.missing.some(item=>item.includes('目的地')));
+  assert.equal(parseCustomerMessage('明年想去意大利').destination,'義大利');
+});
+
 test('comparison never invents unknown operational fields',()=>{
   const record=comparisonRecord({trip:{code:'TYO05JX261101AA',title:'東京五日',price:'39,900元起',dates:'2026/11/01',airline:'星宇航空',source:'besttour-search',updated:'2026-07-18T10:00:00Z'}});
   assert.equal(record.hotels,'待人工確認');

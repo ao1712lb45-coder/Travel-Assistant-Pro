@@ -3,7 +3,7 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TravelSalesWorkbench = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  const DESTINATIONS = ['日本','北海道','東京','大阪','九州','沖繩','韓國','首爾','釜山','濟州島','東南亞','泰國','曼谷','清邁','普吉島','越南','峴港','河內','富國島','新加坡','馬來西亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲'];
+  const DESTINATIONS = ['日本','北海道','東京','大阪','九州','沖繩','韓國','首爾','釜山','濟州島','東南亞','泰國','曼谷','清邁','普吉島','越南','峴港','河內','富國島','新加坡','馬來西亞','義大利','意大利','法國','德國','瑞士','奧地利','英國','西班牙','葡萄牙','希臘','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲'];
   const AIRPORTS = ['桃園','松山','台中','高雄'];
   const TAIWAN_HOLIDAYS = {
     2026:[
@@ -80,7 +80,7 @@
     const holiday = dates.length ? null : resolveTaiwanHoliday(text, now);
     if (holiday) { dates=[holiday.from,holiday.to]; requestedYear=Number(holiday.from.slice(0,4)); monthOnly=Number(holiday.from.slice(5,7)); }
     const airports = AIRPORTS.filter(name => text.includes(name));
-    const destinations = DESTINATIONS.filter(name => text.includes(name));
+    const destinations = [...new Set(DESTINATIONS.filter(name => text.includes(name)).map(name => name === '意大利' ? '義大利' : name))];
     const adult = text.match(/(?:大人|成人|大)(?:\s*)(\d+)\s*(?:位|人)?|(?<!\d)(\d+)\s*(?:位|人)?成人/);
     const child = text.match(/(?:小孩|兒童|小童|孩童|小)(?:\s*)(\d+)\s*(?:位|人)?/);
     const infant = text.match(/(?:嬰兒|嬰幼兒|嬰)(?:\s*)(\d+)\s*(?:位|人)?/);
