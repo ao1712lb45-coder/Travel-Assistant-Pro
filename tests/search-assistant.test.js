@@ -1,5 +1,5 @@
 'use strict';
-const test=require('node:test');const assert=require('node:assert/strict');const {parseSearchRequest,searchTrips}=require('../src/search-assistant.js');
+const test=require('node:test');const assert=require('node:assert/strict');const {parseSearchRequest,searchTrips,officialSearchPlan}=require('../src/search-assistant.js');
 
 test('understands next January and a scenic keyword',()=>{const result=parseSearchRequest('給我明年1月所有藏王樹冰的行程',new Date('2026-07-20T00:00:00+08:00'));assert.equal(result.year,2027);assert.equal(result.month,1);assert.equal(result.keyword,'藏王樹冰')});
 
@@ -12,6 +12,8 @@ test('searches every month in a requested range',()=>{const trips=[{code:'CTS05B
 test('understands mid month and filters departures from day 11 through 20',()=>{const request=parseSearchRequest('10月中旬 北海道全部行程');assert.equal(request.month,10);assert.deepEqual(request.dayRange,[11,20]);assert.equal(request.keyword,'北海道');const trips=[{code:'CTS05BR261005A',title:'北海道初秋',dates:'2026/10/05'},{code:'CTS05BR261015B',title:'北海道楓紅',dates:'2026/10/15'},{code:'CTS05BR261025C',title:'北海道晚秋',dates:'2026/10/25'}];const results=searchTrips(trips,request);assert.equal(results.length,1);assert.equal(results[0].code,'CTS05BR261015B')});
 
 test('understands the upcoming Lunar New Year and broad Europe destination',()=>{const request=parseSearchRequest('過年 歐洲團',new Date('2026-07-22T00:00:00+08:00'));assert.equal(request.year,2027);assert.deepEqual(request.dateRange,['2027-02-05','2027-02-11']);assert.equal(request.keyword,'歐洲');const trips=[{code:'FRA10BR270206A',title:'德瑞法十日',dates:'2027/02/06'},{code:'FRA10BR270220B',title:'巴黎春遊十日',dates:'2027/02/20'},{code:'TYO05BR270206C',title:'東京五日',dates:'2027/02/06'}];const results=searchTrips(trips,request);assert.equal(results.length,1);assert.equal(results[0].code,'FRA10BR270206A')});
+
+test('plans an official Besttour fallback for missing Lunar New Year Japan trips',()=>{const plan=officialSearchPlan(parseSearchRequest('過年日本',new Date('2026-07-22T00:00:00+08:00')));assert.deepEqual(plan,{keywords:['日本'],dateFrom:'2027-02-05',dateTo:'2027-02-11'})});
 
 test('merges identical products with different departure dates but keeps every date',()=>{const trips=[
   {code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起',airline:'長榮航空',highlights:['藏王樹冰']},
