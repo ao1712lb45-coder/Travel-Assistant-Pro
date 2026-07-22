@@ -122,6 +122,7 @@ test('imports matching trips from the official Besttour search API', async () =>
   assert.equal(result.total, 4);
   assert.equal(result.totalPages, 4);
   assert.equal(result.page, 2);
+  assert.equal(result.hasMore, true, 'must continue to the remaining official pages even when this page contains fewer than 50 raw rows');
   assert.equal(result.trips[0].code, 'BKK05JX261111SM');
   assert.equal(result.trips[0].price, '29,888元起');
   assert.equal(result.trips[0].seats, 20);

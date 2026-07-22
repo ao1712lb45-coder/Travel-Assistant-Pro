@@ -251,10 +251,11 @@ async function fetchBesttourSearch(query, fetchImpl = fetch) {
   const rawRows = payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data : [];
   const keywordLower = keyword.toLowerCase();
   const rows = rawRows.filter(row => htmlToText([row.name, row.city, row.country, row.slogan, row.slogan_1, row.slogan_2].filter(Boolean).join(' ')).toLowerCase().includes(keywordLower));
+  const totalPages = Math.max(1, Number(payload.pagecount) || 1);
   return {
     keyword, page, pageSize, total: Math.max(Number(payload.pagecount) || 0, rows.length),
-    totalPages: Math.max(1, Number(payload.pagecount) || 1),
-    hasMore: rawRows.length === pageSize,
+    totalPages,
+    hasMore: page < totalPages,
     trips: rows.map(row => {
       const code = String(row.id || '').toUpperCase();
       const price = Number(row.member_price || row.price) || 0;

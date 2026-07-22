@@ -349,7 +349,7 @@
     allSyncButton.addEventListener('click', async () => {
       if (allSyncActive || syncButton.disabled) return;
       allSyncActive = true; allSyncCancelled = false; allSyncButton.disabled = true;
-      const range = sixMonthRange(new Date());
+      const range = oneYearRange(new Date());
       $('syncDateFrom').value = range.from; $('syncDateTo').value = range.to; $('syncLimit').value = '5000';
       for (let index = 0; index < ALL_SYNC_REGIONS.length; index++) {
         if (allSyncCancelled) break;
