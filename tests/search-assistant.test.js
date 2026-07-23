@@ -15,6 +15,12 @@ test('understands the upcoming Lunar New Year and broad Europe destination',()=>
 
 test('plans an official Besttour fallback for missing Lunar New Year Japan trips',()=>{const plan=officialSearchPlan(parseSearchRequest('過年日本',new Date('2026-07-22T00:00:00+08:00')));assert.deepEqual(plan,{keywords:['日本'],dateFrom:'2027-02-05',dateTo:'2027-02-11'})});
 
+test('recognizes upcoming Taiwan statutory holiday aliases',()=>{const now=new Date('2026-07-23T00:00:00+08:00');const cases=[['中秋節的行程','中秋節及教師節',['2026-09-25','2026-09-28']],['跨年日本','元旦',['2027-01-01','2027-01-03']],['清明韓國','兒童節及清明節',['2027-04-03','2027-04-06']],['聖誕節歐洲','行憲紀念日',['2026-12-25','2026-12-27']]];for(const [text,name,range] of cases){const result=parseSearchRequest(text,now);assert.equal(result.holiday,name);assert.deepEqual(result.dateRange,range)}});
+
+test('recognizes numeric departure ranges and rolls a past range into next year',()=>{const result=parseSearchRequest('9/23-9/25之間出發的日本行程',new Date('2026-07-23T00:00:00+08:00'));assert.deepEqual(result.dateRange,['2026-09-23','2026-09-25']);assert.equal(result.keyword,'日本');const next=parseSearchRequest('2/3-2/5日本',new Date('2026-07-23T00:00:00+08:00'));assert.deepEqual(next.dateRange,['2027-02-03','2027-02-05'])});
+
+test('recognizes full-year and Chinese date range formats',()=>{assert.deepEqual(parseSearchRequest('2027/9/23～9/25日本').dateRange,['2027-09-23','2027-09-25']);assert.deepEqual(parseSearchRequest('9月23日至25日日本',new Date('2026-07-23T00:00:00+08:00')).dateRange,['2026-09-23','2026-09-25'])});
+
 test('merges identical products with different departure dates but keeps every date',()=>{const trips=[
   {code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起',airline:'長榮航空',highlights:['藏王樹冰']},
   {code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起',airline:'長榮航空',highlights:['藏王樹冰']}
