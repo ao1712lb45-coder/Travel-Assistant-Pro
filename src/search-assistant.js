@@ -29,6 +29,16 @@
     if(!raw[4])endYear=endMonth<startMonth?startYear+1:startYear;
     return {raw:raw[0],from:iso(startYear,startMonth,startDay),to:iso(endYear,endMonth,endDay)};
   }
+  function monthPeriodRange(source,now,preferredYear){
+    const pattern=new RegExp(`${monthToken}\\s*月\\s*(上旬|初|初旬|中旬|下旬|底|末)?\\s*(?:-|~|～|至|到)\\s*${monthToken}\\s*月\\s*(上旬|初|初旬|中旬|下旬|底|末)?`),match=source.match(pattern);
+    if(!match)return null;
+    const startMonth=chineseNumber(match[1]),startPeriod=match[2]||'',endMonth=chineseNumber(match[3]),endPeriod=match[4]||'';
+    const startDay=/中旬/.test(startPeriod)?11:/下旬|底|末/.test(startPeriod)?21:1;
+    let startYear=preferredYear||now.getFullYear(),endYear=endMonth<startMonth?startYear+1:startYear;
+    const endDay=/上旬|初|初旬/.test(endPeriod)?10:/中旬/.test(endPeriod)?20:new Date(endYear,endMonth,0).getDate();
+    if(!preferredYear&&iso(endYear,endMonth,endDay)<iso(now.getFullYear(),now.getMonth()+1,now.getDate())){startYear++;endYear++}
+    return {raw:match[0],from:iso(startYear,startMonth,startDay),to:iso(endYear,endMonth,endDay)};
+  }
   function resolveHoliday(source,now,preferredYear){const today=iso(now.getFullYear(),now.getMonth()+1,now.getDate()),matches=Object.values(TAIWAN_HOLIDAYS).flat().map(([name,from,to,aliases])=>({name,from,to,aliases})).filter(item=>(!preferredYear||Number(item.from.slice(0,4))===preferredYear)&&item.aliases.some(alias=>source.includes(alias))).sort((a,b)=>a.from.localeCompare(b.from));return matches.find(item=>preferredYear||item.to>=today)||matches[matches.length-1]||null}
   function parseSearchRequest(text,now=new Date()){
     const source=clean(text),explicitYear=(source.match(/(20\d{2})\s*年?/)||[])[1];
@@ -40,11 +50,11 @@
     else months=[...source.matchAll(new RegExp(`${monthToken}\\s*月`,'g'))].map(match=>chineseNumber(match[1]));
     months=[...new Set(months.filter(value=>value>=1&&value<=12))];
     let month=months.length===1?months[0]:0;
-    const customRange=explicitDateRange(source,now,year),holiday=customRange?null:resolveHoliday(source,now,year),dateRange=customRange?[customRange.from,customRange.to]:holiday?[holiday.from,holiday.to]:[];
+    const customRange=explicitDateRange(source,now,year)||monthPeriodRange(source,now,year),holiday=customRange?null:resolveHoliday(source,now,year),dateRange=customRange?[customRange.from,customRange.to]:holiday?[holiday.from,holiday.to]:[];
     if(dateRange.length&&!months.length)months=monthSequence(Number(dateRange[0].slice(5,7)),Number(dateRange[1].slice(5,7)));
     month=months.length===1?months[0]:0;
     const resolvedYear=year||(dateRange.length?Number(dateRange[0].slice(0,4)):0);
-    const period=/上旬|月初|初旬/.test(source)?'early':/中旬/.test(source)?'middle':/下旬|月底|月末/.test(source)?'late':'';
+    const period=customRange?'':/上旬|月初|初旬/.test(source)?'early':/中旬/.test(source)?'middle':/下旬|月底|月末/.test(source)?'late':'';
     const dayRange=period==='early'?[1,10]:period==='middle'?[11,20]:period==='late'?[21,31]:[];
     const holidayAliases=Object.values(TAIWAN_HOLIDAYS).flat().flatMap(item=>item[3]).sort((a,b)=>b.length-a.length).join('|');
     let keyword=source.replace(customRange&&customRange.raw||/(?!)/g,' ').replace(new RegExp(holidayAliases,'g'),' ').replace(/20\d{2}\s*年?/g,' ').replace(/今年|明年|後年/g,' ').replace(new RegExp(`${monthToken}\\s*月?\\s*[-~～至到]\\s*${monthToken}\\s*月`,'g'),' ').replace(new RegExp(`${monthToken}\\s*月?\\s*[、,，及和]\\s*${monthToken}\\s*月`,'g'),' ').replace(new RegExp(`${monthToken}\\s*月`,'g'),' ').replace(/上旬|月初|初旬|中旬|下旬|月底|月末/g,' ').replace(/之間出發|期間出發|出發/g,' ').replace(/給我|幫我|請幫我|搜尋|查詢|找出|找|所有|全部|有哪些|行程|團體|旅遊|的|團/g,' ').replace(/[~～，,。！？!?]/g,' ').replace(/\s+/g,' ').trim();

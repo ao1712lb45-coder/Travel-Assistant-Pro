@@ -23,6 +23,10 @@ test('recognizes full-year and Chinese date range formats',()=>{assert.deepEqual
 
 test('normalizes Japan subregions and matches their cities or airport codes',()=>{const request=parseSearchRequest('10-11月 日本東北');assert.equal(request.keyword,'東北');const trips=[{code:'HNA07CX261015A',title:'藏王奧入瀨七日',dates:'2026/10/15'},{code:'SDJ06BR261105B',title:'仙台山形六日',dates:'2026/11/05'},{code:'TYO05BR261105C',title:'東京五日',dates:'2026/11/05'}];assert.equal(searchTrips(trips,request).length,2);assert.deepEqual(officialSearchPlan(request).keywords,['東北'])});
 
+test('recognizes a range from mid October through the end of November',()=>{const request=parseSearchRequest('10月中旬到11月底 日本東北',new Date('2026-07-23T00:00:00+08:00'));assert.deepEqual(request.dateRange,['2026-10-11','2026-11-30']);assert.equal(request.keyword,'東北');const trips=[{code:'SDJ06BR261010A',title:'仙台六日',dates:'2026/10/10'},{code:'SDJ06BR261011B',title:'仙台六日',dates:'2026/10/11'},{code:'AOJ06BR261130C',title:'青森六日',dates:'2026/11/30'},{code:'AOJ06BR261201D',title:'青森六日',dates:'2026/12/01'}];assert.equal(searchTrips(trips,request).length,2)});
+
+test('recognizes a cross-year month-period range',()=>{const result=parseSearchRequest('12月中旬到1月初北海道',new Date('2026-07-23T00:00:00+08:00'));assert.deepEqual(result.dateRange,['2026-12-11','2027-01-10']);assert.equal(result.keyword,'北海道')});
+
 test('merges identical products with different departure dates but keeps every date',()=>{const trips=[
   {code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起',airline:'長榮航空',highlights:['藏王樹冰']},
   {code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起',airline:'長榮航空',highlights:['藏王樹冰']}
