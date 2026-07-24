@@ -27,6 +27,10 @@ test('recognizes a range from mid October through the end of November',()=>{cons
 
 test('recognizes a cross-year month-period range',()=>{const result=parseSearchRequest('12月中旬到1月初北海道',new Date('2026-07-23T00:00:00+08:00'));assert.deepEqual(result.dateRange,['2026-12-11','2027-01-10']);assert.equal(result.keyword,'北海道')});
 
+test('treats Kaohsiung as a departure city instead of a destination keyword',()=>{const request=parseSearchRequest('高雄出發 北海道');assert.equal(request.departureCity,'高雄');assert.equal(request.keyword,'北海道');const trips=[{code:'CTS05BR261101A',title:'北海道五日',dates:'2026/11/01',departureCity:'桃園'},{code:'CTS05BR261102B',title:'北海道五日',dates:'2026/11/02',departureCity:'高雄'}];const results=searchTrips(trips,request);assert.equal(results.length,1);assert.equal(results[0].code,'CTS05BR261102B')});
+
+test('recognizes common Taiwan departure airport wording',()=>{for(const city of ['桃園','松山','台中','高雄']){const request=parseSearchRequest(`${city}機場起飛 日本`);assert.equal(request.departureCity,city);assert.equal(request.keyword,'日本')}});
+
 test('merges identical products with different departure dates but keeps every date',()=>{const trips=[
   {code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起',airline:'長榮航空',highlights:['藏王樹冰']},
   {code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起',airline:'長榮航空',highlights:['藏王樹冰']}
