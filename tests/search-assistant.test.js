@@ -31,6 +31,10 @@ test('treats Kaohsiung as a departure city instead of a destination keyword',()=
 
 test('recognizes common Taiwan departure airport wording',()=>{for(const city of ['桃園','松山','台中','高雄']){const request=parseSearchRequest(`${city}機場起飛 日本`);assert.equal(request.departureCity,city);assert.equal(request.keyword,'日本')}});
 
+test('understands Hokkaido month range and Kaohsiung departure in different word orders',()=>{const phrases=['10-12月 高雄出發北海道','高雄出發北海道 10-12月','北海道 10至12月 高雄出發','高雄機場出發 10～12月 北海道','10月到12月 北海道 高雄起飛'];for(const phrase of phrases){const request=parseSearchRequest(phrase);assert.deepEqual(request.months,[10,11,12],phrase);assert.equal(request.departureCity,'高雄',phrase);assert.equal(request.keyword,'北海道',phrase)}});
+
+test('applies month destination and departure filters together regardless of word order',()=>{const trips=[{code:'CTS05BR261101A',title:'北海道五日',dates:'2026/11/01',departureCity:'桃園'},{code:'CTS05BR261102B',title:'北海道五日',dates:'2026/11/02',departureCity:'高雄'},{code:'CTS05BR270102C',title:'北海道五日',dates:'2027/01/02',departureCity:'高雄'},{code:'TYO05BR261103D',title:'東京五日',dates:'2026/11/03',departureCity:'高雄'}];for(const phrase of ['10-12月 高雄出發北海道','高雄出發北海道 10-12月']){const results=searchTrips(trips,parseSearchRequest(phrase));assert.deepEqual(results.map(trip=>trip.code),['CTS05BR261102B'],phrase)}});
+
 test('merges identical products with different departure dates but keeps every date',()=>{const trips=[
   {code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起',airline:'長榮航空',highlights:['藏王樹冰']},
   {code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起',airline:'長榮航空',highlights:['藏王樹冰']}
