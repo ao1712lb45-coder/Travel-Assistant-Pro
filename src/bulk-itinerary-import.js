@@ -6,6 +6,10 @@
     const matches=clean(value).match(/https?:\/\/[^\s,，;；]+|[A-Za-z]{3}\d{2}[A-Za-z0-9]{2}\d{6}[A-Za-z0-9]{0,6}/g)||[];
     return [...new Set(matches.map(item=>/^https?:/i.test(item)?item:item.toUpperCase()))].slice(0,50);
   }
+  function analyzeBulkEntries(value){
+    const matches=clean(value).match(/https?:\/\/[^\s,，;；]+|[A-Za-z]{3}\d{2}[A-Za-z0-9]{2}\d{6}[A-Za-z0-9]{0,6}/g)||[],entries=parseBulkEntries(value);
+    return {entries,inputCount:matches.length,duplicateCount:Math.max(0,matches.length-entries.length)};
+  }
   function recordFromResult(result,payload){
     const fields=payload.data.fields||{},url=fields.lowestPriceUrl||payload.data.finalUrl;
     return {url,code:result.code,days:result.days?`${result.days}日`:'',title:result.title,mainTitle:result.title,subtitle:result.subtitle,price:result.price,airline:result.airline,dates:(result.dates||[]).join('、'),highlights:result.highlights||[],raw:payload.data.text,updated:new Date().toISOString()};
@@ -59,7 +63,7 @@
     document.getElementById('stopBulkImport').onclick=()=>{stopped=true;activeControllers.forEach(controller=>controller.abort())};
     document.getElementById('clearBulkImport').onclick=()=>{document.getElementById('bulkItineraryInput').value='';document.getElementById('bulkImportProgress').className='status';document.getElementById('bulkProgressBox').style.display='none';document.getElementById('bulkImportedResults').innerHTML=''};
     document.getElementById('runBulkImport').onclick=async()=>{
-      const entries=parseBulkEntries(document.getElementById('bulkItineraryInput').value),button=document.getElementById('runBulkImport'),stopButton=document.getElementById('stopBulkImport'),status=document.getElementById('bulkImportProgress'),progressBox=document.getElementById('bulkProgressBox'),progressBar=document.getElementById('bulkProgressBar'),progressLabel=document.getElementById('bulkProgressLabel'),progressPercent=document.getElementById('bulkProgressPercent');
+      const analysis=analyzeBulkEntries(document.getElementById('bulkItineraryInput').value),entries=analysis.entries,button=document.getElementById('runBulkImport'),stopButton=document.getElementById('stopBulkImport'),status=document.getElementById('bulkImportProgress'),progressBox=document.getElementById('bulkProgressBox'),progressBar=document.getElementById('bulkProgressBar'),progressLabel=document.getElementById('bulkProgressLabel'),progressPercent=document.getElementById('bulkProgressPercent');
       if(!entries.length){status.textContent='請至少貼上一個有效團號或行程網址。';status.className='status show warn';return}
       button.disabled=true;stopButton.disabled=false;stopped=false;activeControllers=new Set();progressBox.style.display='block';progressBar.value=0;progressPercent.textContent='0%';const saved=[],failed=[];let completed=0;
       progressLabel.textContent=`正在同時匯入 ${entries.length} 團…`;status.textContent=`已完成 0 / ${entries.length} 團`;status.className='status show warn';
@@ -73,12 +77,13 @@
       }));
       let database=[];try{database=JSON.parse(localStorage.getItem('travelV10Db')||'[]')}catch(_){}
       localStorage.setItem('travelV10Db',JSON.stringify(mergeRecords(database,saved)));
-      progressLabel.textContent=stopped?`已停止，共處理 ${completed} / ${entries.length} 團`:`匯入完成，共處理 ${entries.length} 團`;status.textContent=`${stopped?'批次匯入已停止':'批次匯入完成'}：成功 ${saved.length} 團，失敗 ${failed.length} 團。${failed.length?' 失敗項目：'+failed.join('；'):''}`;status.className='status show '+(failed.length||stopped?'warn':'ok');button.disabled=false;stopButton.disabled=true;
+      const duplicateNote=analysis.duplicateCount?`輸入 ${analysis.inputCount} 團，其中重複 ${analysis.duplicateCount} 團，實際處理 ${entries.length} 團。`:`共處理 ${entries.length} 團。`;
+      progressLabel.textContent=stopped?`已停止，共處理 ${completed} / ${entries.length} 團`:`匯入完成，${duplicateNote}`;status.textContent=`${stopped?'批次匯入已停止':'批次匯入完成'}：${duplicateNote}成功 ${saved.length} 團，失敗 ${failed.length} 團。${failed.length?' 失敗項目：'+failed.join('；'):''}`;status.className='status show '+(failed.length||stopped?'warn':'ok');button.disabled=false;stopButton.disabled=true;
       renderImported(saved);if(saved.length){const generated=generateBatchMaterials(saved);status.textContent+=` 已產生 ${generated} 個行程文案，請按「下一步」查看行銷素材。`}
       setTimeout(()=>global.renderDb?.(),0);
     };
     singleButton.addEventListener('click',event=>{const codes=[codeInput?.value,...document.querySelectorAll('.extra-tour-code')].map(item=>clean(item&&item.value!==undefined?item.value:item)).filter(Boolean);if(codes.length<=1)return;event.preventDefault();event.stopImmediatePropagation();document.getElementById('bulkItineraryInput').value=codes.join('\n');panel.style.display='block';toggle.textContent='收起批次匯入';document.getElementById('runBulkImport').click()},true);
   }
   if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install()}
-  return {parseBulkEntries,recordFromResult,mergeRecords,joinBatchMaterials,withTimeout,validateParsedResult,install};
+  return {parseBulkEntries,analyzeBulkEntries,recordFromResult,mergeRecords,joinBatchMaterials,withTimeout,validateParsedResult,install};
 });
