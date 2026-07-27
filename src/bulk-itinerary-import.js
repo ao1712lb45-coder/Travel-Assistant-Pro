@@ -21,7 +21,7 @@
   }
   function joinBatchMaterials(items,options={}){
     const count=items.length,contact=[options.contact,options.line?`LINE ${options.line}`:''].filter(Boolean).join('\n');
-    const trips=items.map(({record},index)=>{const highlights=(record.highlights||[]).slice(0,5).map(item=>`✅ ${item}`).join('\n');return`【${index+1}｜${record.title||record.mainTitle||record.code}】\n團號：${record.code}\n${highlights?`${highlights}\n`:''}${record.airline?`✈️ ${record.airline}\n`:''}${record.dates?`📅 ${record.dates}\n`:''}${record.price?`💰 ${record.price}\n`:''}${record.url?`🔗 ${record.url}`:''}`.trim()}).join('\n\n━━━━━━━━━━━━━━━━\n\n');
+    const trips=items.map(({record},index)=>{const highlights=(record.highlights||[]).slice(0,5).map(item=>`✅ ${item}`).join('\n');return`【${index+1}｜${record.title||record.mainTitle||record.code}】\n${highlights?`${highlights}\n`:''}${record.airline?`✈️ ${record.airline}\n`:''}${record.dates?`📅 ${record.dates}\n`:''}${record.price?`💰 ${record.price}\n`:''}${record.url?`🔗 ${record.url}`:''}`.trim()}).join('\n\n━━━━━━━━━━━━━━━━\n\n');
     const ending=`\n\n以上行程的價格與機位會即時變動，想確認適合的日期，歡迎直接詢問。${contact?`\n\n${contact}`:''}`;
     return {
       lineOut:`✈️ 以下是我整理的 ${count} 個精選行程～\n可以一起比較日期、航空公司和價格：\n\n${trips}${ending}`,
