@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { cloudConfig, readTrips, upsertTrips } = require('../cloud-store');
+const { cloudConfig, readTrips, upsertTrips, readClients, upsertClient, deleteClient } = require('../cloud-store');
 
 test('cloud configuration requires both URL and secret key', () => {
   assert.equal(cloudConfig({}).configured, false);
@@ -50,3 +50,13 @@ test('Supabase error details are preserved without exposing request credentials'
     error => error.code==='CLOUD_REQUEST_FAILED' && /Invalid API key/.test(error.message) && !/sb_secret_hidden/.test(error.message)
   );
 });
+
+test('CRM records share Supabase safely without appearing in the trip database', async()=>{
+  let tripUrl='';
+  const trips=await readTrips({url:'https://sample.supabase.co',key:'secret',configured:true},async url=>{tripUrl=String(url);return{ok:true,status:200,text:async()=>JSON.stringify([])}});
+  assert.deepEqual(trips,[]);assert.match(tripUrl,/code=not\.like\.__CRM__/);
+  const clients=await readClients({url:'https://sample.supabase.co',key:'secret',configured:true},async url=>{assert.match(String(url),/code=like\.__CRM__/);return{ok:true,status:200,text:async()=>JSON.stringify([{code:'__CRM__1',data:{id:'1',name:'王小姐'}}])}});
+  assert.deepEqual(clients,[{id:'1',name:'王小姐'}]);
+});
+
+test('CRM customers can be saved and deleted in Supabase',async()=>{const requests=[],fetchImpl=async(url,options)=>{requests.push({url:String(url),options});return{ok:true,status:204,text:async()=>''}},config={url:'https://sample.supabase.co',key:'secret',configured:true};await upsertClient(config,{id:'123',name:'陳先生',likes:'日本'},fetchImpl);await deleteClient(config,'123',fetchImpl);const row=JSON.parse(requests[0].options.body)[0];assert.equal(row.code,'__CRM__123');assert.equal(row.data.likes,'日本');assert.match(requests[1].url,/code=eq\.__CRM__123/);assert.equal(requests[1].options.method,'DELETE')});

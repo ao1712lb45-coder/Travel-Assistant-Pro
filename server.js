@@ -4,7 +4,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { CloudStoreError, cloudConfig, readTrips, upsertTrips, createSnapshot } = require('./cloud-store');
+const { CloudStoreError, cloudConfig, readTrips, upsertTrips, readClients, upsertClient, deleteClient, createSnapshot } = require('./cloud-store');
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
@@ -407,6 +407,15 @@ function createServer(options = {}) {
       }
       if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/database/snapshot') {
         return sendJson(res, 200, { ok:true, data:await createSnapshot(supabase,fetchImpl) });
+      }
+      if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/crm') {
+        return sendJson(res,200,{ok:true,data:{configured:supabase.configured,clients:supabase.configured?await readClients(supabase,fetchImpl):[]}});
+      }
+      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/crm') {
+        return sendJson(res,200,{ok:true,data:await upsertClient(supabase,await readJsonBody(req),fetchImpl)});
+      }
+      if (req.method === 'DELETE' && requestUrl.pathname === '/api/cloud/crm') {
+        return sendJson(res,200,{ok:true,data:await deleteClient(supabase,requestUrl.searchParams.get('id'),fetchImpl)});
       }
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });

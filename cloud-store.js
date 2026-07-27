@@ -31,7 +31,7 @@ async function request(config, pathname, options = {}, fetchImpl = fetch) {
 async function readTrips(config, fetchImpl = fetch) {
   const trips=[]; let offset=0;
   while (true) {
-    const rows = await request(config, '/rest/v1/travel_trips?select=code,data&order=updated_at.asc', {
+    const rows = await request(config, '/rest/v1/travel_trips?select=code,data&code=not.like.__CRM__*&order=updated_at.asc', {
       headers:{ range:`${offset}-${offset + 999}` }
     }, fetchImpl) || [];
     rows.forEach(row => { if (row && row.data && row.code) trips.push({ ...row.data, code:row.code }); });
@@ -40,6 +40,24 @@ async function readTrips(config, fetchImpl = fetch) {
     if (offset >= 100000) throw new CloudStoreError('CLOUD_TOO_MANY_ROWS', '雲端行程數量超過安全上限。', 507);
   }
   return trips;
+}
+
+async function readClients(config, fetchImpl = fetch) {
+  const rows=await request(config,'/rest/v1/travel_trips?select=code,data&code=like.__CRM__*&order=updated_at.asc',{},fetchImpl)||[];
+  return rows.map(row=>row&&row.data).filter(client=>client&&client.id&&client.name);
+}
+
+async function upsertClient(config, client, fetchImpl = fetch) {
+  const id=String(client&&client.id||'').trim(),name=String(client&&client.name||'').trim();
+  if(!id||!name)throw new CloudStoreError('INVALID_CLIENT','客戶姓名或識別碼不完整。',400);
+  await request(config,'/rest/v1/travel_trips?on_conflict=code',{method:'POST',headers:{'content-type':'application/json','prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{code:`__CRM__${id}`,data:{...client,id,name},updated_at:new Date().toISOString()}])},fetchImpl);
+  return {saved:1};
+}
+
+async function deleteClient(config, id, fetchImpl = fetch) {
+  const value=String(id||'').trim();if(!value)throw new CloudStoreError('INVALID_CLIENT','缺少客戶識別碼。',400);
+  await request(config,`/rest/v1/travel_trips?code=eq.${encodeURIComponent(`__CRM__${value}`)}`,{method:'DELETE',headers:{prefer:'return=minimal'}},fetchImpl);
+  return {deleted:1};
 }
 
 async function upsertTrips(config, trips, fetchImpl = fetch) {
@@ -65,4 +83,4 @@ async function createSnapshot(config, fetchImpl = fetch) {
   return { tripCount:trips.length };
 }
 
-module.exports={CloudStoreError,cloudConfig,readTrips,upsertTrips,createSnapshot};
+module.exports={CloudStoreError,cloudConfig,readTrips,upsertTrips,readClients,upsertClient,deleteClient,createSnapshot};
