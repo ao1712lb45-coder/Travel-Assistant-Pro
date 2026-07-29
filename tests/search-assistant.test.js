@@ -1,5 +1,5 @@
 'use strict';
-const test=require('node:test');const assert=require('node:assert/strict');const {parseSearchRequest,searchTrips,officialSearchPlan,ittmsUrl}=require('../src/search-assistant.js');
+const test=require('node:test');const assert=require('node:assert/strict');const {parseSearchRequest,searchTrips,officialSearchPlan,ittmsUrl,searchSummary}=require('../src/search-assistant.js');
 
 test('understands next January and a scenic keyword',()=>{const result=parseSearchRequest('給我明年1月所有藏王樹冰的行程',new Date('2026-07-20T00:00:00+08:00'));assert.equal(result.year,2027);assert.equal(result.month,1);assert.equal(result.keyword,'藏王樹冰')});
 
@@ -45,3 +45,5 @@ test('does not merge different itinerary products',()=>{const trips=[{code:'SDJ0
 test('search assistant always outputs ITTMS links with the agency number',()=>{assert.equal(ittmsUrl('TYO06FD261107KK'),'https://itinerary.ittms.com.tw/?travel_no=TYO06FD261107KK&agt_no=3004C5');const [result]=searchTrips([{code:'TYO06FD261107KK',title:'東京六日',dates:'2026/11/07',url:'https://www.besttour.com.tw/itinerary/TYO06FD261107KK'}],{keyword:'東京'});assert.equal(result.url,'https://itinerary.ittms.com.tw/?travel_no=TYO06FD261107KK&agt_no=3004C5')});
 
 test('merged search result uses the lowest-price departure code in its ITTMS link',()=>{const [result]=searchTrips([{code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起'},{code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起'}],{keyword:'藏王樹冰'});assert.equal(result.code,'SDJ05BR270103ZAO');assert.equal(result.url,'https://itinerary.ittms.com.tw/?travel_no=SDJ05BR270103ZAO&agt_no=3004C5')});
+
+test('search summary explains parsed date departure destination and departure count',()=>{const request=parseSearchRequest('10-12月 高雄出發北海道'),results=searchTrips([{code:'CTS05BR261101A',title:'北海道五日',dates:'2026/11/01、2026/11/08',departureCity:'高雄'}],request),summary=searchSummary(request,results);assert.match(summary,/期間：10–12 月/);assert.match(summary,/出發地：高雄/);assert.match(summary,/目的地：北海道/);assert.match(summary,/1 種行程、共 2 個出發日/)});

@@ -4,7 +4,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { CloudStoreError, cloudConfig, readTrips, upsertTrips, readClients, upsertClient, deleteClient, createSnapshot } = require('./cloud-store');
+const { CloudStoreError, cloudConfig, readTrips, upsertTrips, readClients, upsertClient, deleteClient, createSnapshot, listSnapshots, restoreSnapshot, createClientSnapshot, listClientSnapshots, restoreClientSnapshot } = require('./cloud-store');
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
@@ -379,7 +379,7 @@ function createServer(options = {}) {
       applySecurityHeaders(res);
       const requestUrl = new URL(req.url, 'http://localhost');
       if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
-        return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'2.1.0', protected:Boolean(appPassword) } });
+        return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'2.2.0', protected:Boolean(appPassword) } });
       }
       if (!isAuthorized(req, appUser, appPassword)) return requestLogin(res);
       if (req.method === 'GET' && ['/api/itinerary/fetch', '/api/besttour/fetch'].includes(requestUrl.pathname)) {
@@ -408,6 +408,12 @@ function createServer(options = {}) {
       if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/database/snapshot') {
         return sendJson(res, 200, { ok:true, data:await createSnapshot(supabase,fetchImpl) });
       }
+      if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/database/snapshots') {
+        return sendJson(res,200,{ok:true,data:{snapshots:await listSnapshots(supabase,fetchImpl)}});
+      }
+      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/database/restore') {
+        return sendJson(res,200,{ok:true,data:await restoreSnapshot(supabase,(await readJsonBody(req)).id,fetchImpl)});
+      }
       if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/crm') {
         return sendJson(res,200,{ok:true,data:{configured:supabase.configured,clients:supabase.configured?await readClients(supabase,fetchImpl):[]}});
       }
@@ -416,6 +422,15 @@ function createServer(options = {}) {
       }
       if (req.method === 'DELETE' && requestUrl.pathname === '/api/cloud/crm') {
         return sendJson(res,200,{ok:true,data:await deleteClient(supabase,requestUrl.searchParams.get('id'),fetchImpl)});
+      }
+      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/crm/snapshot') {
+        return sendJson(res,200,{ok:true,data:await createClientSnapshot(supabase,fetchImpl)});
+      }
+      if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/crm/snapshots') {
+        return sendJson(res,200,{ok:true,data:{snapshots:await listClientSnapshots(supabase,fetchImpl)}});
+      }
+      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/crm/restore') {
+        return sendJson(res,200,{ok:true,data:await restoreClientSnapshot(supabase,(await readJsonBody(req)).id,fetchImpl)});
       }
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });

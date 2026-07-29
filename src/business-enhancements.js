@@ -56,7 +56,7 @@
       localStorage.setItem('travelDatabaseChanges',JSON.stringify([...logs,...JSON.parse(localStorage.getItem('travelDatabaseChanges')||'[]')].slice(0,100)));
       localStorage.setItem('travelDatabaseSyncMeta',JSON.stringify({at:new Date().toISOString(),added:changes.added.length,priceDown:changes.priceDown.length,priceUp:changes.priceUp.length,changed:changes.changed.length}));before=null;render();
     }).observe(status,{childList:true,subtree:true,characterData:true});
-    render(); installCrmTracking(readDb);
+    render();
     const style=document.createElement('style');style.textContent=`.db-dashboard{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0}.db-stat{padding:10px;border:1px solid #dbeae9;border-radius:12px;background:#f5faf9}.db-stat b{display:block;font-size:20px;color:#07645f}.db-stat span{font-size:11px;color:#64777a}.change-row{display:grid;grid-template-columns:62px 135px 1fr;gap:7px;padding:5px 0;border-bottom:1px solid #e7efef;font-size:12px}.change-row.down{color:#087a55}.change-row.up{color:#b42318}.change-row.new{color:#07645f}@media(max-width:700px){.db-dashboard{grid-template-columns:repeat(2,1fr)}.change-row{grid-template-columns:55px 1fr}.change-row span:last-child{grid-column:1/-1}.section>.hint,.section details{max-height:none}.grid3{grid-template-columns:1fr}.btnrow button{padding:8px 10px;font-size:12px}}`;
     document.head.appendChild(style);
   }

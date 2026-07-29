@@ -77,10 +77,43 @@ async function createSnapshot(config, fetchImpl = fetch) {
     method:'POST', headers:{'content-type':'application/json','prefer':'return=minimal'},
     body:JSON.stringify([{trip_count:trips.length,data:trips}])
   }, fetchImpl);
-  const old = await request(config, '/rest/v1/travel_database_snapshots?select=id&order=created_at.desc&offset=3', {}, fetchImpl) || [];
+  const old = await request(config, '/rest/v1/travel_database_snapshots?select=id&trip_count=gte.0&order=created_at.desc&offset=3', {}, fetchImpl) || [];
   const ids = old.map(row => Number(row.id)).filter(Number.isFinite);
   if (ids.length) await request(config, `/rest/v1/travel_database_snapshots?id=in.(${ids.join(',')})`, { method:'DELETE' }, fetchImpl);
   return { tripCount:trips.length };
 }
 
-module.exports={CloudStoreError,cloudConfig,readTrips,upsertTrips,readClients,upsertClient,deleteClient,createSnapshot};
+async function listSnapshots(config, fetchImpl = fetch) {
+  return await request(config,'/rest/v1/travel_database_snapshots?select=id,created_at,trip_count&trip_count=gte.0&order=created_at.desc&limit=3',{},fetchImpl)||[];
+}
+
+async function restoreSnapshot(config, id, fetchImpl = fetch) {
+  const value=Number(id);if(!Number.isInteger(value)||value<1)throw new CloudStoreError('INVALID_SNAPSHOT','備份識別碼不正確。',400);
+  const rows=await request(config,`/rest/v1/travel_database_snapshots?select=data,trip_count&id=eq.${value}&trip_count=gte.0&limit=1`,{},fetchImpl)||[],snapshot=rows[0];
+  if(!snapshot||!Array.isArray(snapshot.data))throw new CloudStoreError('SNAPSHOT_NOT_FOUND','找不到指定的行程備份。',404);
+  await request(config,'/rest/v1/travel_trips?code=not.like.__CRM__*',{method:'DELETE',headers:{prefer:'return=minimal'}},fetchImpl);
+  const result=await upsertTrips(config,snapshot.data,fetchImpl);return{restored:result.saved,tripCount:snapshot.data.length};
+}
+
+async function createClientSnapshot(config, fetchImpl = fetch) {
+  const clients=await readClients(config,fetchImpl),marker=-(clients.length+1);
+  await request(config,'/rest/v1/travel_database_snapshots',{method:'POST',headers:{'content-type':'application/json','prefer':'return=minimal'},body:JSON.stringify([{trip_count:marker,data:clients}])},fetchImpl);
+  const old=await request(config,'/rest/v1/travel_database_snapshots?select=id&trip_count=lt.0&order=created_at.desc&offset=3',{},fetchImpl)||[],ids=old.map(row=>Number(row.id)).filter(Number.isFinite);
+  if(ids.length)await request(config,`/rest/v1/travel_database_snapshots?id=in.(${ids.join(',')})`,{method:'DELETE'},fetchImpl);
+  return{clientCount:clients.length};
+}
+
+async function listClientSnapshots(config, fetchImpl = fetch) {
+  const rows=await request(config,'/rest/v1/travel_database_snapshots?select=id,created_at,trip_count&trip_count=lt.0&order=created_at.desc&limit=3',{},fetchImpl)||[];
+  return rows.map(row=>({...row,client_count:Math.max(0,-Number(row.trip_count)-1)}));
+}
+
+async function restoreClientSnapshot(config, id, fetchImpl = fetch) {
+  const value=Number(id);if(!Number.isInteger(value)||value<1)throw new CloudStoreError('INVALID_SNAPSHOT','備份識別碼不正確。',400);
+  const rows=await request(config,`/rest/v1/travel_database_snapshots?select=data&id=eq.${value}&trip_count=lt.0&limit=1`,{},fetchImpl)||[],clients=rows[0]?.data;
+  if(!Array.isArray(clients))throw new CloudStoreError('SNAPSHOT_NOT_FOUND','找不到指定的 CRM 備份。',404);
+  await request(config,'/rest/v1/travel_trips?code=like.__CRM__*',{method:'DELETE',headers:{prefer:'return=minimal'}},fetchImpl);
+  for(const client of clients)await upsertClient(config,client,fetchImpl);return{restored:clients.length,clients};
+}
+
+module.exports={CloudStoreError,cloudConfig,readTrips,upsertTrips,readClients,upsertClient,deleteClient,createSnapshot,listSnapshots,restoreSnapshot,createClientSnapshot,listClientSnapshots,restoreClientSnapshot};
