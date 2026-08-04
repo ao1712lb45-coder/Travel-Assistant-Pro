@@ -33,6 +33,7 @@
     const rawUrl = (codeInput && codeInput.value.trim()) || urlInput.value.trim();
     if (!rawUrl) return show('請輸入團號，或貼上 Besttour／ITTMS 的單一行程網址。', 'warn');
     fetchButton.disabled = true; fetchButton.textContent = '正在讀取官網…';
+    window.TravelDailyPrices?.setDepartures([]);
     show('正在讀取官方行程、出發日期、價格與航班資料…', 'warn');
     try {
       const response = await fetch('/api/itinerary/fetch?url=' + encodeURIComponent(rawUrl), { headers: { accept: 'application/json' } });
@@ -43,6 +44,7 @@
       const result = window.TravelAssistantParser.parse({ url: payload.data.finalUrl, text: payload.data.text });
       if (!result.code || result.code !== payload.data.requestedCode) throw new Error('官網回傳的團號與網址不一致，已停止匯入。');
       const copyUrl = payload.data.fields && payload.data.fields.lowestPriceUrl || payload.data.finalUrl;
+      window.TravelDailyPrices?.setDepartures(payload.data.fields && payload.data.fields.departures || []);
       const missing = applyResult(result, payload.data.text, copyUrl);
       const providerName = payload.data.provider === 'ittms' ? 'ITTMS' : 'Besttour';
       const dates = payload.data.fields && payload.data.fields.dates ? payload.data.fields.dates.length : result.dates.length;
