@@ -12,11 +12,11 @@ test('generates three additional marketing materials from verified trip facts', 
   for (const output of Object.values(result)) assert.match(output, /0988894313/);
 });
 
-test('adds every daily price to extended marketing materials when selected',()=>{
-  const data={includeDailyPrices:true,departures:[{date:'2027/03/01',price:23888},{date:'2027/03/13',price:25888}]};
+test('groups matching daily prices with price before dates in extended materials',()=>{
+  const data={includeDailyPrices:true,departures:[{date:'2027/03/01',price:23888},{date:'2027/03/13',price:25888},{date:'2027/03/14',price:25888},{date:'2027/03/15',price:25888}]};
   const rows=dailyPriceFacts(data).join('\n');
-  assert.match(rows,/3\/1｜23,888 元（最低價）/);
-  assert.match(rows,/3\/13｜25,888 元/);
+  assert.match(rows,/23,888元（最低價）｜3\/1/);
+  assert.match(rows,/25,888元｜3\/13、3\/14、3\/15/);
 });
 test('does not present missing facts as verified information', () => {
   const result = generateExtendedSet({ title:'測試行程', price:'官網目前未顯示', airline:'待確認', dates:'未辨識', highlights:[] });

@@ -14,7 +14,9 @@
     const rows = (data.departures || []).map(item => ({ date:clean(item.date), price:Number(String(item.price || '').replace(/,/g, '')) })).filter(item => item.date && item.price > 0).sort((a,b)=>a.date.localeCompare(b.date));
     if (!rows.length) return [];
     const minimum = Math.min(...rows.map(item => item.price));
-    return ['💰 每日出發價格', ...rows.map(item => `📅 ${item.date.replace(/^\d{4}\//, '').replace(/^0|\/0/g, match => match === '0' ? '' : '/')}｜${item.price.toLocaleString('zh-TW')} 元${item.price === minimum ? '（最低價）' : ''}`)];
+    const groups = new Map();
+    rows.forEach(item => { if (!groups.has(item.price)) groups.set(item.price, []); groups.get(item.price).push(item.date.replace(/^\d{4}\//, '').replace(/^0|\/0/g, match => match === '0' ? '' : '/')); });
+    return ['💰 每日出發價格', ...[...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([price,dates]) => `💰 ${price.toLocaleString('zh-TW')}元${price === minimum ? '（最低價）' : ''}｜${dates.join('、')}`)];
   };
   const facts = data => [
     valid(data.airline) ? `航空公司：${data.airline}` : '',
