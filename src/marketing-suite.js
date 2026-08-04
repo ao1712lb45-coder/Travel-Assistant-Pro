@@ -9,11 +9,18 @@
   const clean = value => String(value || '').trim();
   const valid = value => value && !/官網目前未顯示|未辨識|待確認/.test(value);
   const highlights = data => (data.highlights || []).map(clean).filter(Boolean).slice(0, 6);
+  const dailyPriceFacts = data => {
+    if (!data.includeDailyPrices) return [];
+    const rows = (data.departures || []).map(item => ({ date:clean(item.date), price:Number(String(item.price || '').replace(/,/g, '')) })).filter(item => item.date && item.price > 0).sort((a,b)=>a.date.localeCompare(b.date));
+    if (!rows.length) return [];
+    const minimum = Math.min(...rows.map(item => item.price));
+    return ['💰 每日出發價格', ...rows.map(item => `📅 ${item.date.replace(/^\d{4}\//, '').replace(/^0|\/0/g, match => match === '0' ? '' : '/')}｜${item.price.toLocaleString('zh-TW')} 元${item.price === minimum ? '（最低價）' : ''}`)];
+  };
   const facts = data => [
     valid(data.airline) ? `航空公司：${data.airline}` : '',
     valid(data.dates) ? `出發日期：${data.dates}` : '',
     valid(data.price) ? `參考售價：${data.price}` : ''
-  ].filter(Boolean);
+  ].filter(Boolean).concat(dailyPriceFacts(data));
   const footer = data => [valid(data.url) ? `完整行程：${data.url}` : '', data.contact, data.line ? `LINE：${data.line}` : ''].filter(Boolean).join('\n');
 
   function edm(data) {
@@ -52,11 +59,11 @@
     const heading = section.querySelector('h2');
     if (heading) heading.textContent = '步驟 4｜一鍵產生行銷素材';
     const readData = () => ({
-      url:document.getElementById('url').value.trim(), days:document.getElementById('days').value.trim(), title:document.getElementById('mainTitle').value.trim(), subtitle:document.getElementById('subtitle').value.trim(), price:document.getElementById('price').value.trim(), airline:document.getElementById('airline').value.trim(), dates:document.getElementById('dates').value.trim(), highlights:document.getElementById('highlights').value.split(/\r?\n/).map(clean).filter(Boolean), contact:document.getElementById('contact').value.trim(), line:document.getElementById('line').value.trim()
+      url:document.getElementById('url').value.trim(), days:document.getElementById('days').value.trim(), title:document.getElementById('mainTitle').value.trim(), subtitle:document.getElementById('subtitle').value.trim(), price:document.getElementById('price').value.trim(), airline:document.getElementById('airline').value.trim(), dates:document.getElementById('dates').value.trim(), highlights:document.getElementById('highlights').value.split(/\r?\n/).map(clean).filter(Boolean), contact:document.getElementById('contact').value.trim(), line:document.getElementById('line').value.trim(), includeDailyPrices:!!document.getElementById('includeDailyPricesInCopy')?.checked, departures:globalThis.TravelDailyPrices?.getDepartures()||[]
     });
     const render = () => { const result = generateExtendedSet(readData()); outputs.forEach(([id]) => { document.getElementById(id).value = result[id.replace('Out', '')]; }); };
     generate.addEventListener('click', render);
-    ['url','days','mainTitle','subtitle','price','airline','dates','highlights','contact','line'].forEach(id => document.getElementById(id).addEventListener('input', render));
+    ['url','days','mainTitle','subtitle','price','airline','dates','highlights','contact','line','includeDailyPricesInCopy'].forEach(id => document.getElementById(id)?.addEventListener('input', render));
     tabs.addEventListener('click', event => {
       const button = event.target.closest('[data-tab]'); if (!button) return;
       section.querySelectorAll('.tab').forEach(item => item.classList.toggle('active', item === button));
@@ -80,5 +87,5 @@
     if (document.querySelector('[data-tab="lineOut"]')) install();
     else document.addEventListener('DOMContentLoaded', install);
   }
-  return { edm, committee, video, generateExtendedSet };
+  return { dailyPriceFacts, edm, committee, video, generateExtendedSet };
 });

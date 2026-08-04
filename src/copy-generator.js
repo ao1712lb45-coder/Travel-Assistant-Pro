@@ -78,6 +78,7 @@
   const list = d => (d.highlights || []).filter(Boolean).slice(0, 5);
   const bullets = (d, icon = '•') => list(d).map(x => `${icon} ${x}`).join('\n');
   const contact = d => [d.contact, d.line ? `LINE ${d.line}` : ''].filter(Boolean).join('\n');
+  const dailyPrices = d => d.includeDailyPrices && globalThis.TravelDailyPrices ? globalThis.TravelDailyPrices.marketingPriceText(d.departures) : '';
   const info = d => [valid(d.airline) ? `✈️ ${d.airline}` : '', valid(d.dates) ? `📅 ${d.dates}` : '', valid(d.price) ? `💰 ${d.price}` : ''].filter(Boolean).join('\n');
   function detectStyle(d, requested) {
     if (requested && requested !== 'auto') return requested;
@@ -96,19 +97,19 @@
     const script = blueprint(variant), title = `【${clean(d.title)}${d.days && !clean(d.title).includes(d.days) ? ` ${d.days}` : ''}】`;
     const b = bullets(d, variant % 2 ? '✅' : '🔸');
     const url = valid(d.url) ? `\n\n🔗 完整行程：\n${d.url}` : '';
-    return `${decorator(variant)}\n${opener(style, variant)}\n${script.opening}\n\n${title}\n\n${script.body}\n\n${b}\n\n${info(d)}${url}\n\n${script.closing}\n${contact(d)}`.trim();
+    return `${decorator(variant)}\n${opener(style, variant)}\n${script.opening}\n\n${title}\n\n${script.body}\n\n${b}\n\n${info(d)}${dailyPrices(d)}${url}\n\n${script.closing}\n${contact(d)}`.trim();
   }
   function facebookText(d, style, variant) {
     const script = blueprint(variant);
     const b = bullets(d, variant % 2 ? '✨' : '📍');
     const url = valid(d.url) ? `\n\n👉 查看完整行程：${d.url}` : '';
-    return `${decorator(variant)}\n${script.opening}\n\n【${d.title}】\n\n${script.body}\n\n行程亮點\n${b}\n\n${info(d)}${url}\n\n${script.closing}\n\n${contact(d)}`.trim();
+    return `${decorator(variant)}\n${script.opening}\n\n【${d.title}】\n\n${script.body}\n\n行程亮點\n${b}\n\n${info(d)}${dailyPrices(d)}${url}\n\n${script.closing}\n\n${contact(d)}`.trim();
   }
   function threadsText(d, style, variant) {
     const script = blueprint(variant), h = list(d).slice(0, 3).join('、') || d.subtitle || '行程亮點';
     const url = valid(d.url) ? `🔗 完整行程：${d.url}` : '';
     const footer = [url, contact(d)].filter(Boolean).join('\n');
-    return `${decorator(variant)}\n${script.opening}\n\n${script.body}\n\n${d.title}\n${h}\n${info(d)}\n\n${script.closing}${footer ? `\n\n${footer}` : ''}`.replace(/\n{3,}/g, '\n\n').trim();
+    return `${decorator(variant)}\n${script.opening}\n\n${script.body}\n\n${d.title}\n${h}\n${info(d)}${dailyPrices(d)}\n\n${script.closing}${footer ? `\n\n${footer}` : ''}`.replace(/\n{3,}/g, '\n\n').trim();
   }
   function generateSet(data, requestedStyle = 'auto', variant = 1) {
     const normalized = { ...data, title: clean(data.title) || '行程名稱待確認' };
@@ -122,7 +123,7 @@
     variantSelect.previousElementSibling.textContent = '文案版型';
     variantSelect.innerHTML = '<option value="auto">每次自動變化</option>' + Array.from({ length: 50 }, (_, i) => `<option value="${i + 1}">版型 ${i + 1}</option>`).join('');
     let counter = 0;
-    const readData = () => ({ url:byId('url').value.trim(), code:byId('code').value.trim(), days:byId('days').value.trim(), title:byId('mainTitle').value.trim(), subtitle:byId('subtitle').value.trim(), price:byId('price').value.trim(), airline:byId('airline').value.trim(), dates:byId('dates').value.trim(), highlights:byId('highlights').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean), contact:byId('contact').value.trim(), line:byId('line').value.trim() });
+    const readData = () => ({ url:byId('url').value.trim(), code:byId('code').value.trim(), days:byId('days').value.trim(), title:byId('mainTitle').value.trim(), subtitle:byId('subtitle').value.trim(), price:byId('price').value.trim(), airline:byId('airline').value.trim(), dates:byId('dates').value.trim(), highlights:byId('highlights').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean), contact:byId('contact').value.trim(), line:byId('line').value.trim(), includeDailyPrices:!!byId('includeDailyPricesInCopy')?.checked, departures:globalThis.TravelDailyPrices?.getDepartures()||[] });
     const render = (advance, target = 'all') => {
       if (advance) {
         counter += 1;

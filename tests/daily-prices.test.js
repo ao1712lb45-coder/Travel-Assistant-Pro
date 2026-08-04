@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {normalizeDepartures,shortDate,dailyPriceRows}=require('../src/daily-prices.js');
+const {normalizeDepartures,shortDate,dailyPriceRows,marketingPriceText}=require('../src/daily-prices.js');
 
 test('shows a separate price for every departure date',()=>{
   const rows=dailyPriceRows([
@@ -11,6 +11,13 @@ test('shows a separate price for every departure date',()=>{
   assert.deepEqual(rows.map(row=>[row.label,row.priceLabel,row.lowest]),[
     ['3/1','23,888 元',true],['3/13','25,888 元',false]
   ]);
+});
+
+test('formats every departure price for step four marketing copy',()=>{
+  const text=marketingPriceText([{date:'2027/03/01',price:23888},{date:'2027/03/13',price:25888}]);
+  assert.match(text,/每日出發價格/);
+  assert.match(text,/3\/1｜23,888 元（最低價）/);
+  assert.match(text,/3\/13｜25,888 元/);
 });
 
 test('daily prices remove invalid duplicate rows and sort by date',()=>{
