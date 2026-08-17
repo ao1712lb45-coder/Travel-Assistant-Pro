@@ -50,6 +50,7 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(cloudDatabaseScript, /cloudProgressBar/);
     assert.match(cloudDatabaseScript, /正在上傳/);
     assert.match(cloudDatabaseScript, /同步完成/);
+    assert.doesNotMatch(cloudDatabaseScript, /root\.renderDb/);
     assert.doesNotMatch(cloudDatabaseScript, /setInterval\(\(\)=>syncNow\(true\),60000\)/);
     assert.doesNotMatch(cloudDatabaseScript, /setInterval\(\(\)=>syncNow\(false\),10000\)/);
     const marketing = await fetch(`${base}/src/marketing-suite.js`, { headers:{ authorization:basic('team','secret') } });
