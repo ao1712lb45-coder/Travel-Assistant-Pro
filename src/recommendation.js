@@ -419,7 +419,7 @@
         }
         localStorage.removeItem('travelSyncCheckpoint');
         $('syncProgress').value = 100; $('syncProgressPercent').textContent = '100%'; $('syncProgressText').textContent = '同步完成';
-        if (typeof global.renderDb === 'function') global.renderDb();
+        if (typeof global.renderDb === 'function') global.renderDb();document.dispatchEvent(new CustomEvent('travel:database-updated'));
         status.className = 'status show ok';
         status.textContent = `同步完成：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團、略過未變更 ${checkpoint.skipped} 團，共檢查 ${checkpoint.processed} 團。`;
       } catch (error) {
