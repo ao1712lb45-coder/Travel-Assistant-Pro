@@ -96,9 +96,17 @@
       const code=String(trip.code||'').toUpperCase(),identity=[trip.title,trip.mainTitle,trip.destination].join(' ').toLowerCase();
       return strict.codes.some(prefix=>code.startsWith(prefix)) || strict.terms.some(term=>identity.includes(term.toLowerCase()));
     }
-    if (tripText(trip).includes(value.toLowerCase())) return true;
     const codes = REGION_CODES[value] || [];
-    return codes.some(code => String(trip.code || '').toUpperCase().startsWith(code));
+    if (codes.length) {
+      const identity=[trip.code,trip.title,trip.mainTitle,trip.subtitle,trip.destination,...(trip.highlights||[])].join(' ').toLowerCase();
+      return identity.includes(value.toLowerCase()) || codes.some(code => String(trip.code || '').toUpperCase().startsWith(code));
+    }
+    return tripText(trip).includes(value.toLowerCase());
+  }
+
+  function databaseKeywordMatches(trip, query) {
+    const value=String(query||'').trim();
+    return !value || destinationMatches(trip,value);
   }
 
   function monthMatches(trip, month) {
@@ -231,7 +239,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, STRICT_DESTINATIONS, ALL_SYNC_REGIONS, REGION_SYNC_KEYWORDS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, expandKeyword, profileSearchTerms, numberFrom, normalizeBudgetRange, destinationMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, STRICT_DESTINATIONS, ALL_SYNC_REGIONS, REGION_SYNC_KEYWORDS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, expandKeyword, profileSearchTerms, numberFrom, normalizeBudgetRange, destinationMatches, databaseKeywordMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');

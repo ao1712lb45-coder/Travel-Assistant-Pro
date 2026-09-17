@@ -40,6 +40,16 @@ test('matches destination, month, people and per-person budget', () => {
   assert.equal(result[0].total, 131200);
 });
 
+test('database keyword Vietnam matches its cities and airport codes',()=>{
+  const records=[
+    {code:'HAN05BR261101OD',title:'樂享下龍灣五日',destination:'東南亞 河內'},
+    {code:'DAD05JX261101QX',title:'峴港慢旅五日',destination:'東南亞 峴港'},
+    {code:'PQC06VJ261105YJ',title:'浪漫富國島六日',destination:'東南亞 富國島'},
+    {code:'TYO05VN261101A',title:'東京五日',destination:'日本',airline:'越南航空'}
+  ];
+  assert.deepEqual(records.filter(trip=>matcher.databaseKeywordMatches(trip,'越南')).map(trip=>trip.code),['HAN05BR261101OD','DAD05JX261101QX','PQC06VJ261105YJ']);
+});
+
 test('budget sliders stay between 5,000 and 400,000 in 5,000 increments', () => {
   assert.equal(matcher.normalizeBudgetRange(1000), 5000);
   assert.equal(matcher.normalizeBudgetRange(10000), 10000);
