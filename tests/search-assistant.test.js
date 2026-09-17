@@ -37,6 +37,8 @@ test('recognizes common Taiwan departure airport wording',()=>{for(const city of
 
 test('understands Hokkaido month range and Kaohsiung departure in different word orders',()=>{const phrases=['10-12月 高雄出發北海道','高雄出發北海道 10-12月','北海道 10至12月 高雄出發','高雄機場出發 10～12月 北海道','10月到12月 北海道 高雄起飛'];for(const phrase of phrases){const request=parseSearchRequest(phrase);assert.deepEqual(request.months,[10,11,12],phrase);assert.equal(request.departureCity,'高雄',phrase);assert.equal(request.keyword,'北海道',phrase)}});
 
+test('understands Vietnam month range and Taoyuan departure and limits official fallback dates',()=>{for(const phrase of ['11-12月出發 越南 桃園出發','11-12月 越南 桃園出發']){const request=parseSearchRequest(phrase,new Date('2026-09-17T00:00:00+08:00'));assert.deepEqual(request.months,[11,12],phrase);assert.equal(request.departureCity,'桃園',phrase);assert.equal(request.keyword,'越南',phrase);assert.deepEqual(officialSearchPlan(request,new Date('2026-09-17T00:00:00+08:00')),{keywords:['越南'],dateFrom:'2026-11-01',dateTo:'2026-12-31'},phrase)}});
+
 test('applies month destination and departure filters together regardless of word order',()=>{const trips=[{code:'CTS05BR261101A',title:'北海道五日',dates:'2026/11/01',departureCity:'桃園'},{code:'CTS05BR261102B',title:'北海道五日',dates:'2026/11/02',departureCity:'高雄'},{code:'CTS05BR270102C',title:'北海道五日',dates:'2027/01/02',departureCity:'高雄'},{code:'TYO05BR261103D',title:'東京五日',dates:'2026/11/03',departureCity:'高雄'}];for(const phrase of ['10-12月 高雄出發北海道','高雄出發北海道 10-12月']){const results=searchTrips(trips,parseSearchRequest(phrase));assert.deepEqual(results.map(trip=>trip.code),['CTS05BR261102B'],phrase)}});
 
 test('merges identical products with different departure dates but keeps every date',()=>{const trips=[

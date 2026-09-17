@@ -13,6 +13,9 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const ITTMS_AGENT = '3004C5';
 const BESTTOUR_HOSTS = new Set(['besttour.com.tw', 'www.besttour.com.tw']);
 const ITTMS_HOSTS = new Set(['itinerary.ittms.com.tw']);
+const SEARCH_DESTINATION_ALIASES = {
+  '越南':['越南','河內','峴港','富國島','胡志明','芽莊','下龍灣','沙壩','中越','北越','南越']
+};
 
 class FetchError extends Error {
   constructor(code, message, status = 400) {
@@ -250,8 +253,8 @@ async function fetchBesttourSearch(query, fetchImpl = fetch) {
     slogan_2: '', travel_data: '', pageid: String(page), pagesize: String(pageSize), m_class: '', m_mid: ''
   }, fetchImpl);
   const rawRows = payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data : [];
-  const keywordLower = keyword.toLowerCase();
-  const rows = rawRows.filter(row => htmlToText([row.name, row.city, row.country, row.slogan, row.slogan_1, row.slogan_2].filter(Boolean).join(' ')).toLowerCase().includes(keywordLower));
+  const searchTerms = (SEARCH_DESTINATION_ALIASES[keyword] || [keyword]).map(term => term.toLowerCase());
+  const rows = rawRows.filter(row => { const text=htmlToText([row.name, row.city, row.country, row.slogan, row.slogan_1, row.slogan_2].filter(Boolean).join(' ')).toLowerCase(); return searchTerms.some(term=>text.includes(term)); });
   const totalPages = Math.max(1, Number(payload.pagecount) || 1);
   return {
     keyword, page, pageSize, total: Math.max(Number(payload.pagecount) || 0, rows.length),

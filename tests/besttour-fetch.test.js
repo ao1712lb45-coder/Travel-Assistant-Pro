@@ -131,6 +131,17 @@ test('imports matching trips from the official Besttour search API', async () =>
   assert.equal(result.trips.length, 1);
 });
 
+test('Vietnam search accepts official city names even when rows omit the word Vietnam', async () => {
+  const mockFetch = async () => jsonResponse({status:'0',pagecount:'1',data:[
+    {id:'HAN05BR261101OD',name:'樂享下龍灣５日',member_price:'33900',date:'2026/11/01',from_city:'桃園',city:'東南亞 河內'},
+    {id:'DAD05JX261101QX',name:'峴港慢旅５日',member_price:'19900',date:'2026/11/01',from_city:'桃園',city:'東南亞 峴港'},
+    {id:'YLN02BS261101N',name:'宜蘭找茶趣２日',member_price:'5399',date:'2026/11/01',city:'台灣 宜蘭'}
+  ]});
+  const result=await fetchBesttourSearch({keyword:'越南',dateFrom:'2026/11/01',dateTo:'2026/12/31'},mockFetch);
+  assert.deepEqual(result.trips.map(trip=>trip.code),['HAN05BR261101OD','DAD05JX261101QX']);
+  assert.ok(result.trips.every(trip=>trip.departureCity==='桃園'));
+});
+
 test('requires a keyword before syncing the Besttour database', async () => {
   await assert.rejects(() => fetchBesttourSearch({ keyword:'' }), /請輸入地區或關鍵字/);
 });
