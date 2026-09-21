@@ -443,8 +443,9 @@ function createServer(options = {}) {
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });
     } catch (error) {
-      const known = error instanceof FetchError || error instanceof CloudStoreError;
-      sendJson(res, known ? error.status : 500, { ok: false, error: { code: known ? error.code : 'INTERNAL_ERROR', message: known ? error.message : '系統發生未預期錯誤。' } });
+      const safeError=firebase.configured?firebaseStore.toCloudStoreError(error):error;
+      const known = safeError instanceof FetchError || safeError instanceof CloudStoreError;
+      sendJson(res, known ? safeError.status : 500, { ok: false, error: { code: known ? safeError.code : 'INTERNAL_ERROR', message: known ? safeError.message : '系統發生未預期錯誤。' } });
     }
   });
 }

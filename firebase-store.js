@@ -22,6 +22,19 @@ function getDb(config){
 const codeOf=trip=>String(trip&&trip.code||'').trim().toUpperCase();
 const safeId=value=>crypto.createHash('sha256').update(String(value)).digest('hex');
 
+function toCloudStoreError(error){
+  if(error instanceof CloudStoreError)return error;
+  const raw=String(error&&error.code||'').toLowerCase(),numeric=Number(error&&error.code);
+  if(raw.includes('permission-denied')||numeric===7)return new CloudStoreError('FIREBASE_PERMISSION_DENIED','Firebase Firestore 權限不足，請確認服務帳號仍具有 Firestore 存取權。',503);
+  if(raw.includes('unauthenticated')||raw.includes('invalid-credential')||numeric===16)return new CloudStoreError('FIREBASE_AUTH_FAILED','Firebase 服務帳號驗證失敗，請檢查 Render 的 FIREBASE_CLIENT_EMAIL 與 FIREBASE_PRIVATE_KEY。',503);
+  if(raw.includes('not-found')||numeric===5)return new CloudStoreError('FIRESTORE_NOT_FOUND','找不到 Firebase Firestore 資料庫，請確認專案與資料庫仍存在。',503);
+  if(raw.includes('resource-exhausted')||numeric===8)return new CloudStoreError('FIREBASE_QUOTA_EXCEEDED','Firebase 免費額度目前已用完，請稍後再試或檢查 Firebase 用量。',429);
+  if(raw.includes('failed-precondition')||numeric===9)return new CloudStoreError('FIRESTORE_NOT_READY','Firebase Firestore 尚未完成建立，或查詢需要的設定尚未就緒。',503);
+  if(raw.includes('unavailable')||numeric===14)return new CloudStoreError('FIREBASE_UNAVAILABLE','Firebase 目前暫時無法連線，請稍後再試。',503);
+  if(raw.includes('invalid-argument')||numeric===3)return new CloudStoreError('FIREBASE_CONFIG_INVALID','Firebase 連線設定格式錯誤，請重新檢查 Render 環境變數。',503);
+  return error;
+}
+
 async function readCollection(db,name,limit=10000){const snapshot=await db.collection(name).orderBy('updated','asc').limit(limit).get();return snapshot.docs.map(doc=>doc.data().data).filter(Boolean)}
 async function readTrips(config){return readCollection(getDb(config),'travel_trips')}
 async function upsertTrips(config,trips){const db=getDb(config),unique=new Map();(trips||[]).forEach(trip=>{const code=codeOf(trip);if(code)unique.set(code,{...trip,code})});const rows=[...unique.values()];for(let start=0;start<rows.length;start+=100){const batch=db.batch();rows.slice(start,start+100).forEach(data=>batch.set(db.collection('travel_trips').doc(safeId(data.code)),{code:data.code,data,updated:data.updated||new Date().toISOString()},{merge:true}));await batch.commit()}return{saved:rows.length}}
@@ -39,4 +52,4 @@ async function createClientSnapshot(config){const clients=await readClients(conf
 const listClientSnapshots=config=>listType(config,'crm');
 async function restoreClientSnapshot(config,id){const clients=await snapshot(config,id,'crm'),db=getDb(config);await clearCollection(db,'customers');for(const client of clients)await upsertClient(config,client);return{restored:clients.length,clients}}
 
-module.exports={firebaseConfig,getDb,readTrips,upsertTrips,readClients,upsertClient,deleteClient,createSnapshot,listSnapshots,restoreSnapshot,createClientSnapshot,listClientSnapshots,restoreClientSnapshot};
+module.exports={firebaseConfig,getDb,toCloudStoreError,readTrips,upsertTrips,readClients,upsertClient,deleteClient,createSnapshot,listSnapshots,restoreSnapshot,createClientSnapshot,listClientSnapshots,restoreClientSnapshot};
