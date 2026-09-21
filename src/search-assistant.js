@@ -32,7 +32,8 @@
     '關西':['關西','大阪','京都','奈良','神戶','和歌山','OSA','KIX','UKB'],
     '九州':['九州','福岡','熊本','鹿兒島','宮崎','長崎','大分','FUK','KMJ','KOJ'],
     '沖繩':['沖繩','琉球','那霸','OKA'],
-    '越南':['越南','河內','峴港','富國島','胡志明','胡志明市','芽莊','下龍灣','沙壩','中越','北越','南越','HAN','DAD','PQC','SGN','CXR']
+    '越南':['越南','河內','峴港','富國島','胡志明','胡志明市','芽莊','下龍灣','沙壩','中越','北越','南越','HAN','DAD','PQC','SGN','CXR'],
+    '泰國':['泰國','曼谷','清邁','清萊','普吉島','蘇美島','芭達雅','華欣','考艾','大城','喀比','甲米','皮皮島','BKK','CNX','CEI','HKT','USM','KBV']
   };
   function monthSequence(start,end){const months=[];let current=start;for(let count=0;count<12&&current;count++){months.push(current);if(current===end)break;current=current===12?1:current+1}return months}
   const iso=(year,month,day)=>`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;

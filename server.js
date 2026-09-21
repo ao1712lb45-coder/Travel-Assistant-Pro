@@ -14,7 +14,8 @@ const ITTMS_AGENT = '3004C5';
 const BESTTOUR_HOSTS = new Set(['besttour.com.tw', 'www.besttour.com.tw']);
 const ITTMS_HOSTS = new Set(['itinerary.ittms.com.tw']);
 const SEARCH_DESTINATION_ALIASES = {
-  '越南':['越南','河內','峴港','富國島','胡志明','芽莊','下龍灣','沙壩','中越','北越','南越']
+  '越南':['越南','河內','峴港','富國島','胡志明','芽莊','下龍灣','沙壩','中越','北越','南越'],
+  '泰國':['泰國','曼谷','清邁','清萊','普吉島','蘇美島','芭達雅','華欣','考艾','大城','喀比','甲米','皮皮島']
 };
 
 class FetchError extends Error {

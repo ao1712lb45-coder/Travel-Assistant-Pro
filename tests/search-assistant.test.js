@@ -49,6 +49,13 @@ test('Vietnam assistant search matches official city names and airport codes',()
   {code:'TYO05VN261201A',title:'東京五日',destination:'日本',dates:'2026/12/01',departureCity:'桃園',airline:'越南航空'}
 ];assert.deepEqual(searchTrips(trips,request).map(trip=>trip.code),['HAN05BR261101OD','PQC06VJ261105YJ','DAD05JX261107QX','SGN05VN261210A','CXR05VN261215A','HAN06VJ261220A'])});
 
+test('Thailand Lunar New Year search includes Chiang Mai and other Thai destinations',()=>{const request=parseSearchRequest('泰國過年',new Date('2026-09-21T00:00:00+08:00')),trips=[
+  {code:'BKK05BR270205A',title:'曼谷五星五日',destination:'東南亞 曼谷',dates:'2027/02/05'},
+  {code:'CNX05JX270206B',title:'清邁慢旅五日',destination:'東南亞 清邁',dates:'2027/02/06'},
+  {code:'HKT06BR270207C',title:'普吉島六日',destination:'東南亞 普吉島',dates:'2027/02/07'},
+  {code:'SIN05BR270206D',title:'新加坡五日',destination:'東南亞 新加坡',dates:'2027/02/06'}
+];assert.equal(request.keyword,'泰國');assert.deepEqual(request.dateRange,['2027-02-05','2027-02-11']);assert.deepEqual(searchTrips(trips,request).map(trip=>trip.code),['BKK05BR270205A','CNX05JX270206B','HKT06BR270207C'])});
+
 test('applies month destination and departure filters together regardless of word order',()=>{const trips=[{code:'CTS05BR261101A',title:'北海道五日',dates:'2026/11/01',departureCity:'桃園'},{code:'CTS05BR261102B',title:'北海道五日',dates:'2026/11/02',departureCity:'高雄'},{code:'CTS05BR270102C',title:'北海道五日',dates:'2027/01/02',departureCity:'高雄'},{code:'TYO05BR261103D',title:'東京五日',dates:'2026/11/03',departureCity:'高雄'}];for(const phrase of ['10-12月 高雄出發北海道','高雄出發北海道 10-12月']){const results=searchTrips(trips,parseSearchRequest(phrase));assert.deepEqual(results.map(trip=>trip.code),['CTS05BR261102B'],phrase)}});
 
 test('merges identical products with different departure dates but keeps every date',()=>{const trips=[

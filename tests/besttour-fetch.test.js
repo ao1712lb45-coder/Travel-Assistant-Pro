@@ -142,6 +142,15 @@ test('Vietnam search accepts official city names even when rows omit the word Vi
   assert.ok(result.trips.every(trip=>trip.departureCity==='桃園'));
 });
 
+test('Thailand search accepts Chiang Mai when the row omits the word Thailand',async()=>{
+  const mockFetch=async()=>jsonResponse({status:'0',pagecount:'1',data:[
+    {id:'CNX05JX270206B',name:'清邁慢旅五日',member_price:'39900',date:'2027/02/06',from_city:'桃園',city:'東南亞 清邁'},
+    {id:'SIN05BR270206D',name:'新加坡五日',member_price:'39900',date:'2027/02/06',from_city:'桃園',city:'東南亞 新加坡'}
+  ]});
+  const result=await fetchBesttourSearch({keyword:'泰國',dateFrom:'2027/02/05',dateTo:'2027/02/11'},mockFetch);
+  assert.deepEqual(result.trips.map(trip=>trip.code),['CNX05JX270206B']);
+});
+
 test('requires a keyword before syncing the Besttour database', async () => {
   await assert.rejects(() => fetchBesttourSearch({ keyword:'' }), /請輸入地區或關鍵字/);
 });
