@@ -6,6 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { CloudStoreError, cloudConfig, readTrips, upsertTrips, readClients, upsertClient, deleteClient, createSnapshot, listSnapshots, restoreSnapshot, createClientSnapshot, listClientSnapshots, restoreClientSnapshot } = require('./cloud-store');
 const firebaseStore = require('./firebase-store');
+const googleDrive = require('./google-drive-store');
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
@@ -380,6 +381,7 @@ function createServer(options = {}) {
   const supabase = options.supabase || cloudConfig();
   const store = firebase.configured ? firebaseStore : {readTrips,upsertTrips,readClients,upsertClient,deleteClient,createSnapshot,listSnapshots,restoreSnapshot,createClientSnapshot,listClientSnapshots,restoreClientSnapshot};
   const cloud = firebase.configured ? firebase : supabase;
+  const drive = options.drive || googleDrive.driveConfig();
   const appUser = options.appUser !== undefined ? options.appUser : (process.env.APP_USER || 'team');
   const appPassword = options.appPassword !== undefined ? options.appPassword : (process.env.APP_PASSWORD || '');
   return http.createServer(async (req, res) => {
@@ -390,6 +392,25 @@ function createServer(options = {}) {
         return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'2.2.0', protected:Boolean(appPassword) } });
       }
       if (!isAuthorized(req, appUser, appPassword)) return requestLogin(res);
+      const forwardedProto=String(req.headers['x-forwarded-proto']||'http').split(',')[0].trim();
+      const forwardedHost=String(req.headers['x-forwarded-host']||req.headers.host||'localhost').split(',')[0].trim();
+      const driveRedirect=`${forwardedProto}://${forwardedHost}/api/google-drive/callback`;
+      const driveStateSecret=process.env.GOOGLE_DRIVE_STATE_SECRET || appPassword || drive.clientSecret || 'travel-assistant-drive-setup';
+      if(req.method==='GET'&&requestUrl.pathname==='/api/google-drive/status')return sendJson(res,200,{ok:true,data:{oauthReady:drive.oauthReady,configured:drive.configured,folderId:drive.folderId||''}});
+      if(req.method==='GET'&&requestUrl.pathname==='/api/google-drive/connect'){
+        res.writeHead(302,{location:googleDrive.oauthUrl(drive,driveRedirect,googleDrive.stateToken(driveStateSecret)),'cache-control':'no-store'});return res.end();
+      }
+      if(req.method==='GET'&&requestUrl.pathname==='/api/google-drive/callback'){
+        if(!googleDrive.validState(requestUrl.searchParams.get('state'),driveStateSecret))throw new googleDrive.GoogleDriveError('INVALID_OAUTH_STATE','Google Drive 授權驗證已失效，請重新連接。',400);
+        const token=await googleDrive.accessToken(drive,fetchImpl,requestUrl.searchParams.get('code'),driveRedirect);
+        const refresh=String(token.refresh_token||'');if(!refresh)throw new googleDrive.GoogleDriveError('NO_REFRESH_TOKEN','Google 未回傳長期授權，請重新連接並同意權限。',400);
+        const escaped=refresh.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const html=`<!doctype html><meta charset="utf-8"><title>Google Drive 授權完成</title><style>body{font-family:system-ui;max-width:760px;margin:60px auto;padding:24px}code{display:block;word-break:break-all;background:#eef6f5;padding:16px;border-radius:10px}b{color:#087a70}</style><h1>Google Drive 授權成功</h1><p>請把下方內容填入 Render 的 <b>GOOGLE_DRIVE_REFRESH_TOKEN</b>，儲存部署後即可關閉此頁。</p><code>${escaped}</code><p>這是私密憑證，請勿貼到聊天室或 GitHub。</p>`;
+        res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});return res.end(html);
+      }
+      if(req.method==='POST'&&requestUrl.pathname==='/api/google-drive/backups')return sendJson(res,200,{ok:true,data:await googleDrive.createBackup(drive,await readJsonBody(req,64*1024*1024),fetchImpl)});
+      if(req.method==='GET'&&requestUrl.pathname==='/api/google-drive/backups')return sendJson(res,200,{ok:true,data:{backups:await googleDrive.listBackups(drive,fetchImpl)}});
+      if(req.method==='GET'&&requestUrl.pathname==='/api/google-drive/backups/restore')return sendJson(res,200,{ok:true,data:await googleDrive.readBackup(drive,requestUrl.searchParams.get('id'),fetchImpl)});
       if (req.method === 'GET' && ['/api/itinerary/fetch', '/api/besttour/fetch'].includes(requestUrl.pathname)) {
         return sendJson(res, 200, { ok: true, data: await fetchItineraryPage(requestUrl.searchParams.get('url'), fetchImpl) });
       }
@@ -443,8 +464,8 @@ function createServer(options = {}) {
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });
     } catch (error) {
-      const safeError=firebase.configured?firebaseStore.toCloudStoreError(error):error;
-      const known = safeError instanceof FetchError || safeError instanceof CloudStoreError;
+      const safeError=error instanceof googleDrive.GoogleDriveError?error:(firebase.configured?firebaseStore.toCloudStoreError(error):error);
+      const known = safeError instanceof FetchError || safeError instanceof CloudStoreError || safeError instanceof googleDrive.GoogleDriveError;
       sendJson(res, known ? safeError.status : 500, { ok: false, error: { code: known ? safeError.code : 'INTERNAL_ERROR', message: known ? safeError.message : '系統發生未預期錯誤。' } });
     }
   });
