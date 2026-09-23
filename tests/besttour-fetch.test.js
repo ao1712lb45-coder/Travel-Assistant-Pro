@@ -131,6 +131,18 @@ test('imports matching trips from the official Besttour search API', async () =>
   assert.equal(result.trips.length, 1);
 });
 
+test('direct tour-code imports use the official API without waiting for the HTML page', async () => {
+  const calls=[];
+  const mockFetch=async url=>{const value=String(url);calls.push(value);
+    if(value.includes('travel_detail_info.asp'))return jsonResponse({status:'0',data:[{title_1:'北海道五日',id_key:'key',mini_price:'45800',date:'2026/12/04'}]});
+    if(value.includes('travel_flight.asp')||value.includes('travel_detail_feature.asp')||value.includes('travel_detail_calendar.asp'))return jsonResponse({status:'1',data:[]});
+    throw new Error('HTML page should not be requested');
+  };
+  const result=await fetchItineraryPage('HKD07JX261204AV',mockFetch);
+  assert.equal(result.source,'besttour-api');
+  assert.equal(calls.some(url=>url.includes('www.besttour.com.tw/itinerary/')),false);
+});
+
 test('Vietnam search accepts official city names even when rows omit the word Vietnam', async () => {
   const mockFetch = async () => jsonResponse({status:'0',pagecount:'1',data:[
     {id:'HAN05BR261101OD',name:'樂享下龍灣５日',member_price:'33900',date:'2026/11/01',from_city:'桃園',city:'東南亞 河內'},

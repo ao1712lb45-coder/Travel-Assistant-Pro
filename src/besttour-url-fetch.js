@@ -35,8 +35,10 @@
     fetchButton.disabled = true; fetchButton.textContent = '正在讀取官網…';
     window.TravelDailyPrices?.setDepartures([]);
     show('正在讀取官方行程、出發日期、價格與航班資料…', 'warn');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
     try {
-      const response = await fetch('/api/itinerary/fetch?url=' + encodeURIComponent(rawUrl), { headers: { accept: 'application/json' } });
+      const response = await fetch('/api/itinerary/fetch?url=' + encodeURIComponent(rawUrl), { signal:controller.signal, headers: { accept: 'application/json' } });
       let payload;
       try { payload = await response.json(); } catch { throw new Error('伺服器回傳格式無法辨識。'); }
       if (!response.ok || !payload.ok) throw new Error(payload.error && payload.error.message || '官網讀取失敗。');
@@ -51,8 +53,9 @@
       show(missing.length ? `${providerName} 已匯入 ${dates} 個出發日期；請人工確認：${missing.join('、')}` : `${providerName} 已完成解析，共匯入 ${dates} 個出發日期，社群文案已更新。`, missing.length ? 'warn' : 'ok');
     } catch (error) {
       const localFile = location.protocol === 'file:';
-      show((localFile ? '請雙擊 START_SERVER.bat 後再使用自動抓取。' : error.message) + ' 仍可使用下方「貼上官網整頁文字」備援。', 'err');
-    } finally { fetchButton.disabled = false; fetchButton.textContent = '自動抓取並解析'; }
+      const reason=error && error.name==='AbortError'?'官網讀取超過 30 秒，已停止等待，請再試一次。':error.message;
+      show((localFile ? '請雙擊 START_SERVER.bat 後再使用自動抓取。' : reason) + ' 仍可使用下方「貼上官網整頁文字」備援。', 'err');
+    } finally { clearTimeout(timeout); fetchButton.disabled = false; fetchButton.textContent = '自動抓取並解析'; }
   });
   if (codeInput) codeInput.addEventListener('keydown', event => {
     if (event.key === 'Enter') { event.preventDefault(); fetchButton.click(); }

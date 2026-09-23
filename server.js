@@ -278,6 +278,12 @@ async function fetchBesttourSearch(query, fetchImpl = fetch) {
 
 async function fetchItineraryPage(rawUrl, fetchImpl = fetch) {
   const requested = validateItineraryUrl(rawUrl);
+  const enteredAsCode = /^[A-Z0-9]{10,30}$/i.test(String(rawUrl || '').trim());
+  if (enteredAsCode && requested.provider === 'besttour') {
+    const apiResult = await fetchOfficialItinerary(requested.code, fetchImpl, { provider:'besttour' });
+    return { requestedUrl:requested.url.href, finalUrl:requested.url.href, requestedCode:requested.code,
+      provider:requested.provider, text:apiResult.text, source:apiResult.source, fields:apiResult.fields, fetchedAt:new Date().toISOString() };
+  }
   if (requested.provider === 'ittms') {
     const apiResult = await fetchOfficialItinerary(requested.code, fetchImpl, { provider: 'ittms' });
     return { requestedUrl: requested.url.href, finalUrl: requested.url.href, requestedCode: requested.code,
