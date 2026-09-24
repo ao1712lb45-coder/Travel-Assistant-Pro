@@ -16,8 +16,10 @@ const BESTTOUR_HOSTS = new Set(['besttour.com.tw', 'www.besttour.com.tw']);
 const ITTMS_HOSTS = new Set(['itinerary.ittms.com.tw']);
 const SEARCH_DESTINATION_ALIASES = {
   '越南':['越南','河內','峴港','富國島','胡志明','芽莊','下龍灣','沙壩','中越','北越','南越'],
-  '泰國':['泰國','曼谷','清邁','清萊','普吉島','蘇美島','芭達雅','華欣','考艾','大城','喀比','甲米','皮皮島']
+  '泰國':['泰國','曼谷','清邁','清萊','普吉島','蘇美島','芭達雅','華欣','考艾','大城','喀比','甲米','皮皮島'],
+  '中國':['中國','大陸','北京','上海','江南','杭州','蘇州','南京','張家界','湖南','四川','成都','重慶','九寨溝','雲南','昆明','麗江','貴州','桂林','廣西','海南','三亞','西安','陝西','山東','青島','山西','河南','新疆','西藏','內蒙古','東北三省','哈爾濱','大連','甘肅','敦煌','寧夏','福建','廈門','武夷山','廣東','潮汕','黃山','江西']
 };
+const CHINA_AIRPORT_CODES = ['PEK','PKX','PVG','SHA','CAN','SZX','CTU','TFU','CKG','KMG','XIY','CSX','DYG','XNN','URC','LXA','HGH','NKG','WUH','CGO','TAO','TNA','HRB','DLC','SHE','FOC','XMN','KWL','HAK','SYX','KHN','HFE','TYN','LJG','KWE','INC','HET','DSN','LHW','JHG','WNZ','YIW','WUX','NTG','YNT','WEH','SJW','NNG','ZUH','SWA'];
 
 class FetchError extends Error {
   constructor(code, message, status = 400) {
@@ -249,17 +251,21 @@ async function fetchBesttourSearch(query, fetchImpl = fetch) {
   if (!keyword) throw new FetchError('KEYWORD_REQUIRED', '請輸入地區或關鍵字，例如：東南亞、北海道、沙美島。');
   const page = Math.max(1, Math.min(100, Number(query.page) || 1));
   const pageSize = Math.max(1, Math.min(50, Number(query.pageSize || query.limit) || 50));
+  const chinaSearch = keyword === '中國' || keyword === '大陸' || keyword === '中國大陸';
   const payload = await fetchFormJson(apiUrl('query_List_all.asp'), {
     date_from: validSearchDate(query.dateFrom), date_to: validSearchDate(query.dateTo), country: '', day: '',
-    price_min: '', price_max: '', city: '', other: '', talent: '', searchTxt: keyword, slogan: '', slogan_1: '',
+    price_min: '', price_max: '', city: '', other: '', talent: '', searchTxt: chinaSearch ? '' : keyword, slogan: '', slogan_1: '',
     slogan_2: '', travel_data: '', pageid: String(page), pagesize: String(pageSize), m_class: '', m_mid: ''
   }, fetchImpl);
   const rawRows = payload && payload.status === '0' && Array.isArray(payload.data) ? payload.data : [];
   const searchTerms = (SEARCH_DESTINATION_ALIASES[keyword] || [keyword]).map(term => term.toLowerCase());
-  const rows = rawRows.filter(row => { const text=htmlToText([row.name, row.city, row.country, row.slogan, row.slogan_1, row.slogan_2].filter(Boolean).join(' ')).toLowerCase(); return searchTerms.some(term=>text.includes(term)); });
-  const totalPages = Math.max(1, Number(payload.pagecount) || 1);
+  const rows = rawRows.filter(row => { const text=htmlToText([row.name, row.city, row.country, row.slogan, row.slogan_1, row.slogan_2].filter(Boolean).join(' ')).toLowerCase();
+    if(chinaSearch)return CHINA_AIRPORT_CODES.some(code=>String(row.id||'').toUpperCase().startsWith(code));
+    return searchTerms.some(term=>text.includes(term)); });
+  const totalRecords = Math.max(0, Number(payload.pagecount) || 0);
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   return {
-    keyword, page, pageSize, total: Math.max(Number(payload.pagecount) || 0, rows.length),
+    keyword, page, pageSize, total: Math.max(totalRecords, rows.length),
     totalPages,
     hasMore: page < totalPages,
     trips: rows.map(row => {

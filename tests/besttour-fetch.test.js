@@ -115,13 +115,13 @@ test('imports matching trips from the official Besttour search API', async () =>
     assert.equal(form.get('date_from'), '2026/09/01');
     assert.equal(form.get('pagesize'), '50');
     assert.equal(form.get('pageid'), '2');
-    return jsonResponse({ status:'0', pagecount:'4', data:[{
+    return jsonResponse({ status:'0', pagecount:'151', data:[{
       id:'BKK05JX261111SM', name:'【漫享沙美島５日】海島住宿、沙灘火舞', member_price:'29888',
       date:'2026/11/11', day:'5', amount_2:'20', from_city:'桃園', city:'曼谷'
     }, { id:'YLN02BS260719N', name:'宜蘭找茶趣２日', member_price:'5399', date:'2026/07/19', day:'2', city:'台灣 宜蘭' }] });
   };
   const result = await fetchBesttourSearch({ keyword:'沙美島', dateFrom:'2026/09/01', dateTo:'2027/08/31', page:2, pageSize:50 }, mockFetch);
-  assert.equal(result.total, 4);
+  assert.equal(result.total, 151);
   assert.equal(result.totalPages, 4);
   assert.equal(result.page, 2);
   assert.equal(result.hasMore, true, 'must continue to the remaining official pages even when this page contains fewer than 50 raw rows');
@@ -161,6 +161,19 @@ test('Thailand search accepts Chiang Mai when the row omits the word Thailand',a
   ]});
   const result=await fetchBesttourSearch({keyword:'泰國',dateFrom:'2027/02/05',dateTo:'2027/02/11'},mockFetch);
   assert.deepEqual(result.trips.map(trip=>trip.code),['CNX05JX270206B']);
+});
+
+test('China search scans all official rows and keeps mainland airport codes',async()=>{
+  let body='';
+  const mockFetch=async(_url,options)=>{body=String(options.body);return jsonResponse({status:'0',pagecount:'51',data:[
+    {id:'DYG08MU261024M',name:'最美湖南八日',date:'2026/10/24',member_price:'49900'},
+    {id:'XIY10MU261016EU',name:'深度陝西十日',date:'2026/10/16',member_price:'59900'},
+    {id:'TYO05BR261020A',name:'東京五日',date:'2026/10/20',member_price:'39900'}
+  ]})};
+  const result=await fetchBesttourSearch({keyword:'中國',dateFrom:'2026/09/24',dateTo:'2027/09/24',pageSize:50},mockFetch);
+  assert.equal(new URLSearchParams(body).get('searchTxt'),'');
+  assert.deepEqual(result.trips.map(trip=>trip.code),['DYG08MU261024M','XIY10MU261016EU']);
+  assert.equal(result.totalPages,2);
 });
 
 test('requires a keyword before syncing the Besttour database', async () => {

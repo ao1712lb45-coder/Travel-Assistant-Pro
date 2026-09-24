@@ -13,12 +13,17 @@ test('all-trip sync covers today through one year later', () => {
 });
 
 test('all-trip sync covers every quick region without duplicates', () => {
-  assert.deepEqual(matcher.ALL_SYNC_REGIONS, ['日本','韓國','東南亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲']);
+  assert.deepEqual(matcher.ALL_SYNC_REGIONS, ['日本','韓國','中國','東南亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲']);
   assert.equal(new Set(matcher.ALL_SYNC_REGIONS).size, matcher.ALL_SYNC_REGIONS.length);
 });
 
 test('South Europe sync expands the broad category into searchable country names', () => {
   assert.deepEqual(matcher.REGION_SYNC_KEYWORDS['南歐'], ['義大利','西班牙','葡萄牙','希臘','克羅埃西亞','斯洛維尼亞','馬爾他']);
+});
+
+test('China sync uses a broad mainland scan and recognizes major gateway codes',()=>{
+  assert.deepEqual(matcher.REGION_SYNC_KEYWORDS['中國'],['中國']);
+  for(const code of ['PEK','PVG','DYG','CSX','XIY','URC','LXA'])assert.ok(matcher.REGION_CODES['中國'].includes(code));
 });
 
 test('broad Europe and Middle East Africa sync buttons expand into country searches', () => {

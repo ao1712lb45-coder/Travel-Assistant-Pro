@@ -4,8 +4,9 @@
 
   const JAPAN = ['TYO','NRT','HND','OSA','KIX','UKB','NGO','SPK','CTS','HKD','FUK','OKA','SDJ','AOJ','AKJ','AXT','TOY','KMJ','KOJ'];
   const SOUTHEAST_ASIA = ['BKK','CNX','HKT','USM','DAD','HAN','SGN','PQC','SIN','KUL','BKI','PEN','DPS','CGK','MNL','CEB','PNH','RGN','BWN','VTE'];
-  const ALL_SYNC_REGIONS = ['日本','韓國','東南亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲'];
+  const ALL_SYNC_REGIONS = ['日本','韓國','中國','東南亞','中西歐','北歐','南歐','東歐','美加','紐澳','中東非洲'];
   const REGION_SYNC_KEYWORDS = {
+    '中國':['中國'],
     '中西歐':['法國','德國','瑞士','奧地利','荷蘭','比利時','英國','愛爾蘭'],
     '南歐':['義大利','西班牙','葡萄牙','希臘','克羅埃西亞','斯洛維尼亞','馬爾他'],
     '東歐':['捷克','匈牙利','波蘭','斯洛伐克','羅馬尼亞','保加利亞','巴爾幹'],
@@ -15,7 +16,7 @@
     '日本':JAPAN, '北海道':['SPK','CTS','HKD','AKJ'], '東京':['TYO','NRT','HND'], '大阪':['OSA','KIX'], '九州':['FUK','KMJ','KOJ'],
     '韓國':['SEL','ICN','PUS','CJU'], '東南亞':SOUTHEAST_ASIA, '泰國':['BKK','CNX','CEI','HKT','USM','KBV'], '曼谷':['BKK'],
     '沙美島':['BKK'], '越南':['DAD','HAN','SGN','PQC'], '新加坡':['SIN'], '馬來西亞':['KUL','BKI','PEN'],
-    '印尼':['DPS','CGK'], '菲律賓':['MNL','CEB'], '中國':['PVG','PEK','CAN','CTU','KMG']
+    '印尼':['DPS','CGK'], '菲律賓':['MNL','CEB'], '中國':['PEK','PKX','PVG','SHA','CAN','SZX','CTU','TFU','CKG','KMG','XIY','CSX','DYG','XNN','URC','LXA','HGH','NKG','WUH','CGO','TAO','TNA','HRB','DLC','SHE','FOC','XMN','KWL','HAK','SYX','KHN','HFE','TYN','LJG','KWE','INC','HET','DSN','LHW','JHG','NNG','ZUH','SWA']
   };
   const STRICT_DESTINATIONS = {
     '印度':{codes:['DEL','BOM','MAA','BLR','CCU','COK','JAI','VNS','ATQ'],terms:['印度共和國']},
@@ -331,6 +332,10 @@
     if (!$('syncDateFrom').value) $('syncDateFrom').value = localDate(today);
     if (!$('syncDateTo').value) $('syncDateTo').value = localDate(nextYear);
     const quickRegions = $('quickRegionSync');
+    if (quickRegions && !quickRegions.querySelector('[data-region="中國"]')) {
+      const chinaButton=document.createElement('button');chinaButton.dataset.region='中國';chinaButton.textContent='中國全部';
+      const southeast=quickRegions.querySelector('[data-region="東南亞"]');quickRegions.insertBefore(chinaButton,southeast||null);
+    }
     const waitForCurrentSync = () => new Promise(resolve => {
       const timer = setInterval(() => { if (!syncButton.disabled) { clearInterval(timer); resolve(); } }, 250);
     });
