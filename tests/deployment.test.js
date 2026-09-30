@@ -97,3 +97,8 @@ test('online deployment protects the app but leaves health checks available', as
     assert.equal(authorized.headers.get('x-frame-options'), 'DENY');
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('serves a public-facing Google Drive privacy policy',async()=>{
+  const server=createServer({appPassword:'secret'});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try{const base=`http://127.0.0.1:${server.address().port}`,response=await fetch(base+'/privacy.html'),html=await response.text();assert.equal(response.status,200);assert.match(html,/Travel Assistant Pro 隱私權政策/);assert.match(html,/Google Drive/);assert.match(html,/撤銷授權/)}finally{await new Promise(resolve=>server.close(resolve))}
+});

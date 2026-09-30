@@ -403,6 +403,7 @@ function createServer(options = {}) {
       if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
         return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'2.2.0', protected:Boolean(appPassword) } });
       }
+      if (req.method === 'GET' && requestUrl.pathname === '/privacy.html') return serveFile(res, requestUrl.pathname);
       if (!isAuthorized(req, appUser, appPassword)) return requestLogin(res);
       const forwardedProto=String(req.headers['x-forwarded-proto']||'http').split(',')[0].trim();
       const forwardedHost=String(req.headers['x-forwarded-host']||req.headers.host||'localhost').split(',')[0].trim();
