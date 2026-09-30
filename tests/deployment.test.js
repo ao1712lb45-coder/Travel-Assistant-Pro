@@ -48,6 +48,7 @@ test('online deployment protects the app but leaves health checks available', as
     assert.equal(cloudDatabase.status, 200);
     const cloudDatabaseScript = await cloudDatabase.text();
     assert.match(cloudDatabaseScript, /cloudProgressBar/);
+    assert.match(cloudDatabaseScript, /重新連接 Google Drive/);
     assert.match(cloudDatabaseScript, /正在上傳/);
     assert.match(cloudDatabaseScript, /同步完成/);
     assert.doesNotMatch(cloudDatabaseScript, /root\.renderDb/);
