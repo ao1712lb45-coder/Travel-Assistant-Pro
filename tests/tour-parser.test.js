@@ -43,6 +43,12 @@ test('BX airline code is Air Busan', () => {
   assert.equal(result.airline, '釜山航空');
 });
 
+test('ZE airline code is Eastar Jet',()=>{
+  const result=parser.parseTourCode('CJU05ZE270205A');
+  assert.equal(result.airlineCode,'ZE');
+  assert.equal(result.airline,'易斯達航空');
+});
+
 test('supports airline codes that contain a number', () => {
   assert.equal(parser.parseTourCode('CTU05D7261111SM').airline, '亞洲航空X');
   assert.equal(parser.parseTourCode('CTU053U261111SM').airline, '四川航空');
