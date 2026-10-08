@@ -47,6 +47,16 @@
     if(!raw[4])endYear=endMonth<startMonth?startYear+1:startYear;
     return {raw:raw[0],from:iso(startYear,startMonth,startDay),to:iso(endYear,endMonth,endDay)};
   }
+  function explicitSingleDate(source,now,preferredYear){
+    const numeric=source.match(/(?:(20\d{2})[\/.\-])?(\d{1,2})[\/.](\d{1,2})(?!\s*(?:-|~|～|至|到)\s*\d)/);
+    const natural=source.match(/(?:(20\d{2})\s*年)?(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+    const match=numeric||natural;if(!match)return null;
+    const month=Number(match[2]),day=Number(match[3]);if(month<1||month>12||day<1||day>31)return null;
+    let year=Number(match[1]||preferredYear||now.getFullYear());
+    if(!match[1]&&!preferredYear&&iso(year,month,day)<iso(now.getFullYear(),now.getMonth()+1,now.getDate()))year++;
+    if(day>new Date(year,month,0).getDate())return null;
+    const date=iso(year,month,day);return {raw:match[0],from:date,to:date};
+  }
   function monthPeriodRange(source,now,preferredYear){
     const pattern=new RegExp(`${monthToken}\\s*月\\s*(上旬|初|初旬|中旬|下旬|底|末)?\\s*(?:-|~|～|至|到)\\s*${monthToken}\\s*月\\s*(上旬|初|初旬|中旬|下旬|底|末)?`),match=source.match(pattern);
     if(!match)return null;
@@ -70,7 +80,7 @@
     else months=[...source.matchAll(new RegExp(`${monthToken}\\s*月`,'g'))].map(match=>chineseNumber(match[1]));
     months=[...new Set(months.filter(value=>value>=1&&value<=12))];
     let month=months.length===1?months[0]:0;
-    const customRange=explicitDateRange(source,now,year)||monthPeriodRange(source,now,year),holiday=customRange?null:resolveHoliday(source,now,year),dateRange=customRange?[customRange.from,customRange.to]:holiday?[holiday.from,holiday.to]:[];
+    const customRange=explicitDateRange(source,now,year)||monthPeriodRange(source,now,year)||explicitSingleDate(source,now,year),holiday=customRange?null:resolveHoliday(source,now,year),dateRange=customRange?[customRange.from,customRange.to]:holiday?[holiday.from,holiday.to]:[];
     if(dateRange.length&&!months.length)months=monthSequence(Number(dateRange[0].slice(5,7)),Number(dateRange[1].slice(5,7)));
     month=months.length===1?months[0]:0;
     const resolvedYear=year||(dateRange.length?Number(dateRange[0].slice(0,4)):0);
@@ -94,7 +104,7 @@
     if(!dateFrom&&months.length){const first=months[0],last=months[months.length-1],startYear=request.year||now.getFullYear()+(first<now.getMonth()+1?1:0),endYear=last<first?startYear+1:startYear;dateFrom=`${startYear}-${String(first).padStart(2,'0')}-01`;dateTo=`${endYear}-${String(last).padStart(2,'0')}-${new Date(endYear,last,0).getDate()}`}
     return {keywords,dateFrom,dateTo};
   }
-  function searchSummary(request,results){const monthLabel=request.months?.length>1?`${request.months[0]}–${request.months[request.months.length-1]} 月`:request.month?`${request.month} 月`:'不限',periodLabel={early:'上旬',middle:'中旬',late:'下旬'}[request.period]||'',dateLabel=request.dateRange?.length?`${request.dateRange[0]}～${request.dateRange[1]}`:`${request.year?request.year+' 年 ':''}${monthLabel}${periodLabel?` ${periodLabel}`:''}`,departures=(results||[]).reduce((sum,trip)=>sum+Math.max(Number(trip.groupedDepartures)||0,dateStrings(trip).length,1),0),priceLabel=request.minPrice&&request.maxPrice?`${Number(request.minPrice).toLocaleString()}～${Number(request.maxPrice).toLocaleString()} 元`:request.maxPrice?`${Number(request.maxPrice).toLocaleString()} 元內`:request.minPrice?`${Number(request.minPrice).toLocaleString()} 元以上`:'不限';return`期間：${dateLabel}｜出發地：${request.departureCity||'不限'}｜目的地：${request.keyword||'不限'}｜價格：${priceLabel}｜找到 ${(results||[]).length} 種行程、共 ${departures} 個出發日`}
+  function searchSummary(request,results){const monthLabel=request.months?.length>1?`${request.months[0]}–${request.months[request.months.length-1]} 月`:request.month?`${request.month} 月`:'不限',periodLabel={early:'上旬',middle:'中旬',late:'下旬'}[request.period]||'',dateLabel=request.dateRange?.length?(request.dateRange[0]===request.dateRange[1]?request.dateRange[0]:`${request.dateRange[0]}～${request.dateRange[1]}`):`${request.year?request.year+' 年 ':''}${monthLabel}${periodLabel?` ${periodLabel}`:''}`,departures=(results||[]).reduce((sum,trip)=>sum+Math.max(Number(trip.groupedDepartures)||0,dateStrings(trip).length,1),0),priceLabel=request.minPrice&&request.maxPrice?`${Number(request.minPrice).toLocaleString()}～${Number(request.maxPrice).toLocaleString()} 元`:request.maxPrice?`${Number(request.maxPrice).toLocaleString()} 元內`:request.minPrice?`${Number(request.minPrice).toLocaleString()} 元以上`:'不限';return`期間：${dateLabel}｜出發地：${request.departureCity||'不限'}｜目的地：${request.keyword||'不限'}｜價格：${priceLabel}｜找到 ${(results||[]).length} 種行程、共 ${departures} 個出發日`}
   function install(){
     if(typeof document==='undefined'||document.getElementById('searchAssistantSection'))return;
     const panel=document.querySelector('.wrap > .panel'),dbSection=document.getElementById('syncBesttour')?.closest('.section');if(!panel||!dbSection)return;
