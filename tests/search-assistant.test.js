@@ -27,6 +27,15 @@ test('recognizes full-year and Chinese date range formats',()=>{assert.deepEqual
 
 test('recognizes a single departure date and rolls a past date into next year',()=>{const now=new Date('2026-10-08T00:00:00+08:00');for(const phrase of ['韓國 2/5期間出發','2/5 韓國','韓國 2月5日出發']){const request=parseSearchRequest(phrase,now);assert.deepEqual(request.dateRange,['2027-02-05','2027-02-05'],phrase);assert.equal(request.keyword,'韓國',phrase);assert.deepEqual(officialSearchPlan(request,now),{keywords:['韓國'],dateFrom:'2027-02-05',dateTo:'2027-02-05'},phrase)}const trips=[{code:'SEL05BR270205A',title:'韓國五日',dates:'2027/02/05'},{code:'SEL05BR270206B',title:'韓國五日',dates:'2027/02/06'}];const request=parseSearchRequest('韓國 2/5期間出發',now),results=searchTrips(trips,request);assert.deepEqual(results.map(trip=>trip.code),['SEL05BR270205A']);assert.match(searchSummary(request,results),/期間：2027-02-05｜/)});
 
+test('single-date search works across years months formats and leap day',()=>{const now=new Date('2026-10-08T00:00:00+08:00'),cases=[
+  ['日本 10/9出發',['2026-10-09','2026-10-09'],'日本'],
+  ['泰國 12/31期間出發',['2026-12-31','2026-12-31'],'泰國'],
+  ['越南 1/1出發',['2027-01-01','2027-01-01'],'越南'],
+  ['2027/6/18 韓國',['2027-06-18','2027-06-18'],'韓國'],
+  ['北海道 11月20日出發',['2026-11-20','2026-11-20'],'北海道'],
+  ['2028年2月29日 日本',['2028-02-29','2028-02-29'],'日本']
+];for(const [phrase,range,keyword] of cases){const request=parseSearchRequest(phrase,now);assert.deepEqual(request.dateRange,range,phrase);assert.equal(request.keyword,keyword,phrase)}});
+
 test('normalizes Japan subregions and matches their cities or airport codes',()=>{const request=parseSearchRequest('10-11月 日本東北');assert.equal(request.keyword,'東北');const trips=[{code:'HNA07CX261015A',title:'藏王奧入瀨七日',dates:'2026/10/15'},{code:'SDJ06BR261105B',title:'仙台山形六日',dates:'2026/11/05'},{code:'TYO05BR261105C',title:'東京五日',dates:'2026/11/05'}];assert.equal(searchTrips(trips,request).length,2);assert.deepEqual(officialSearchPlan(request).keywords,['東北'])});
 
 test('recognizes a range from mid October through the end of November',()=>{const request=parseSearchRequest('10月中旬到11月底 日本東北',new Date('2026-07-23T00:00:00+08:00'));assert.deepEqual(request.dateRange,['2026-10-11','2026-11-30']);assert.equal(request.keyword,'東北');const trips=[{code:'SDJ06BR261010A',title:'仙台六日',dates:'2026/10/10'},{code:'SDJ06BR261011B',title:'仙台六日',dates:'2026/10/11'},{code:'AOJ06BR261130C',title:'青森六日',dates:'2026/11/30'},{code:'AOJ06BR261201D',title:'青森六日',dates:'2026/12/01'}];assert.equal(searchTrips(trips,request).length,2)});
