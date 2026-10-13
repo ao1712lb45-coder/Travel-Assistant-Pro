@@ -262,10 +262,10 @@ async function fetchBesttourSearch(query, fetchImpl = fetch) {
   const rows = rawRows.filter(row => { const text=htmlToText([row.name, row.city, row.country, row.slogan, row.slogan_1, row.slogan_2].filter(Boolean).join(' ')).toLowerCase();
     if(chinaSearch)return CHINA_AIRPORT_CODES.some(code=>String(row.id||'').toUpperCase().startsWith(code));
     return searchTerms.some(term=>text.includes(term)); });
-  const totalRecords = Math.max(0, Number(payload.pagecount) || 0);
-  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  // Besttour's pagecount is the number of pages, not the number of records.
+  const totalPages = Math.max(1, Number(payload.pagecount) || 1);
   return {
-    keyword, page, pageSize, total: Math.max(totalRecords, rows.length),
+    keyword, page, pageSize, total: rawRows.length,
     totalPages,
     hasMore: page < totalPages,
     trips: rows.map(row => {

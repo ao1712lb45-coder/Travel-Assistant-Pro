@@ -17,7 +17,7 @@ test('understands mid month and filters departures from day 11 through 20',()=>{
 
 test('understands the upcoming Lunar New Year and broad Europe destination',()=>{const request=parseSearchRequest('過年 歐洲團',new Date('2026-07-22T00:00:00+08:00'));assert.equal(request.year,2027);assert.deepEqual(request.dateRange,['2027-02-05','2027-02-11']);assert.equal(request.keyword,'歐洲');const trips=[{code:'FRA10BR270206A',title:'德瑞法十日',dates:'2027/02/06'},{code:'FRA10BR270220B',title:'巴黎春遊十日',dates:'2027/02/20'},{code:'TYO05BR270206C',title:'東京五日',dates:'2027/02/06'}];const results=searchTrips(trips,request);assert.equal(results.length,1);assert.equal(results[0].code,'FRA10BR270206A')});
 
-test('plans an official Besttour fallback for missing Lunar New Year Japan trips',()=>{const plan=officialSearchPlan(parseSearchRequest('過年日本',new Date('2026-07-22T00:00:00+08:00')));assert.deepEqual(plan,{keywords:['日本'],dateFrom:'2027-02-05',dateTo:'2027-02-11'})});
+test('plans an all-region official Besttour search for Japan',()=>{const plan=officialSearchPlan(parseSearchRequest('過年日本',new Date('2026-07-22T00:00:00+08:00')));assert.deepEqual(plan,{keywords:['日本','東京','關東','北海道','東北','關西','九州','沖繩','北陸','中部','四國'],dateFrom:'2027-02-05',dateTo:'2027-02-11'})});
 
 test('recognizes upcoming Taiwan statutory holiday aliases',()=>{const now=new Date('2026-07-23T00:00:00+08:00');const cases=[['中秋節的行程','中秋節及教師節',['2026-09-25','2026-09-28']],['跨年日本','元旦',['2027-01-01','2027-01-03']],['清明韓國','兒童節及清明節',['2027-04-03','2027-04-06']],['聖誕節歐洲','行憲紀念日',['2026-12-25','2026-12-27']]];for(const [text,name,range] of cases){const result=parseSearchRequest(text,now);assert.equal(result.holiday,name);assert.deepEqual(result.dateRange,range)}});
 
