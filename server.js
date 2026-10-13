@@ -4,8 +4,6 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { CloudStoreError, cloudConfig, readTrips, upsertTrips, readClients, upsertClient, deleteClient, createSnapshot, listSnapshots, restoreSnapshot, createClientSnapshot, listClientSnapshots, restoreClientSnapshot } = require('./cloud-store');
-const firebaseStore = require('./firebase-store');
 const googleDrive = require('./google-drive-store');
 
 const PORT = Number(process.env.PORT || 4173);
@@ -391,10 +389,6 @@ function serveFile(res, pathname) {
 
 function createServer(options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
-  const firebase = options.firebase || firebaseStore.firebaseConfig();
-  const supabase = options.supabase || cloudConfig();
-  const store = firebase.configured ? firebaseStore : {readTrips,upsertTrips,readClients,upsertClient,deleteClient,createSnapshot,listSnapshots,restoreSnapshot,createClientSnapshot,listClientSnapshots,restoreClientSnapshot};
-  const cloud = firebase.configured ? firebase : supabase;
   const drive = options.drive || googleDrive.driveConfig();
   const appUser = options.appUser !== undefined ? options.appUser : (process.env.APP_USER || 'team');
   const appPassword = options.appPassword !== undefined ? options.appPassword : (process.env.APP_PASSWORD || '');
@@ -441,46 +435,11 @@ function createServer(options = {}) {
           String(requestUrl.searchParams.get('codes') || '').split(','), String(requestUrl.searchParams.get('keywords') || '').split(','), fetchImpl
         ) });
       }
-      if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/database') {
-        return sendJson(res, 200, { ok:true, data:{ configured:cloud.configured, provider:cloud.provider||'supabase', trips:cloud.configured ? await store.readTrips(cloud,fetchImpl) : [] } });
-      }
-      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/database/sync') {
-        const body=await readJsonBody(req),trips=Array.isArray(body.trips)?body.trips:[];
-        if (trips.length > 250) throw new FetchError('TOO_MANY_TRIPS','每次最多同步 250 團。',400);
-        return sendJson(res, 200, { ok:true, data:await store.upsertTrips(cloud,trips,fetchImpl) });
-      }
-      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/database/snapshot') {
-        return sendJson(res, 200, { ok:true, data:await store.createSnapshot(cloud,fetchImpl) });
-      }
-      if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/database/snapshots') {
-        return sendJson(res,200,{ok:true,data:{snapshots:await store.listSnapshots(cloud,fetchImpl)}});
-      }
-      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/database/restore') {
-        return sendJson(res,200,{ok:true,data:await store.restoreSnapshot(cloud,(await readJsonBody(req)).id,fetchImpl)});
-      }
-      if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/crm') {
-        return sendJson(res,200,{ok:true,data:{configured:cloud.configured,provider:cloud.provider||'supabase',clients:cloud.configured?await store.readClients(cloud,fetchImpl):[]}});
-      }
-      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/crm') {
-        return sendJson(res,200,{ok:true,data:await store.upsertClient(cloud,await readJsonBody(req),fetchImpl)});
-      }
-      if (req.method === 'DELETE' && requestUrl.pathname === '/api/cloud/crm') {
-        return sendJson(res,200,{ok:true,data:await store.deleteClient(cloud,requestUrl.searchParams.get('id'),fetchImpl)});
-      }
-      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/crm/snapshot') {
-        return sendJson(res,200,{ok:true,data:await store.createClientSnapshot(cloud,fetchImpl)});
-      }
-      if (req.method === 'GET' && requestUrl.pathname === '/api/cloud/crm/snapshots') {
-        return sendJson(res,200,{ok:true,data:{snapshots:await store.listClientSnapshots(cloud,fetchImpl)}});
-      }
-      if (req.method === 'POST' && requestUrl.pathname === '/api/cloud/crm/restore') {
-        return sendJson(res,200,{ok:true,data:await store.restoreClientSnapshot(cloud,(await readJsonBody(req)).id,fetchImpl)});
-      }
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });
     } catch (error) {
-      const safeError=error instanceof googleDrive.GoogleDriveError?error:(firebase.configured?firebaseStore.toCloudStoreError(error):error);
-      const known = safeError instanceof FetchError || safeError instanceof CloudStoreError || safeError instanceof googleDrive.GoogleDriveError;
+      const safeError=error;
+      const known = safeError instanceof FetchError || safeError instanceof googleDrive.GoogleDriveError;
       sendJson(res, known ? safeError.status : 500, { ok: false, error: { code: known ? safeError.code : 'INTERNAL_ERROR', message: known ? safeError.message : '系統發生未預期錯誤。' } });
     }
   });
