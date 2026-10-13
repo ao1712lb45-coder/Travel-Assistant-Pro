@@ -185,7 +185,9 @@ async function fetchOfficialItinerary(code, fetchImpl, options = {}) {
     title: info.title_1 || info.title_2 || '', price: minimumPrice, dates, lowestPriceDeparture, lowestPriceUrl,
     airline: flights.find(item => item.name)?.name || '', flights,
     departures: calendarRows.map(item => ({ date: item.dateFull, code: item.no, price: Number(String(item.price || '').replace(/,/g, '')) || null,
-      seats: Number(item.amount) || 0, airline: item.flight_name || '', flight: item.flight || '', departureCity: item.city || '' }))
+      seats: Number(item.amount) || 0, airline: item.flight_name || '', flight: item.flight || '', departureCity: item.city || '',
+      promotions: String(item.promotions || item.promotion || ''), travelStatus: String(item.travel_status == null ? '' : item.travel_status),
+      guaranteedDeparture: String(item.travel_status) === '1' || String(item.promotions || item.promotion || '').includes('D') }))
   }};
 }
 
@@ -274,8 +276,9 @@ async function fetchBesttourSearch(query, fetchImpl = fetch) {
         price: price ? `${price.toLocaleString('en-US')}元起` : '官網目前未顯示', dates: row.date || '',
         airline: '', destination: row.city || '', highlights: [], days: row.day ? `${row.day}日` : '',
         seats: Number(row.amount_2) || 0, departureCity: row.from_city || '',
+        promotions: String(row.promotions || row.promotion || ''),
         travelStatus: String(row.travel_status == null ? '' : row.travel_status),
-        guaranteedDeparture: String(row.travel_status) === '1',
+        guaranteedDeparture: String(row.travel_status) === '1' || String(row.promotions || row.promotion || '').includes('D'),
         url: `https://www.besttour.com.tw/itinerary/${code}`, source: 'besttour-search', updated: new Date().toISOString()
       };
     })
