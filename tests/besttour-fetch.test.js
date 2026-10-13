@@ -133,6 +133,18 @@ test('imports matching trips from the official Besttour search API', async () =>
   assert.equal(result.trips.length, 1);
 });
 
+test('recognizes the official D promotion badge as guaranteed departure even when travel status is zero', async () => {
+  const mockFetch=async()=>jsonResponse({status:'0',pagecount:'1',data:[{
+    id:'KMJ05JX270208WE',name:'【熊愛九州踏雪5日】熊本城、九重戲雪',member_price:'46900',
+    date:'2027/02/08',day:'5',amount_2:'11',travel_status:'0',promotion:'2DX',from_city:'桃園',city:'日本 福岡'
+  }]});
+  const result=await fetchBesttourSearch({keyword:'日本',dateFrom:'2027/02/08',dateTo:'2027/02/09'},mockFetch);
+  assert.equal(result.trips[0].travelStatus,'0');
+  assert.equal(result.trips[0].promotions,'2DX');
+  assert.equal(result.trips[0].guaranteedDeparture,true);
+  assert.equal(result.trips[0].seats,11);
+});
+
 test('direct tour-code imports use the official API without waiting for the HTML page', async () => {
   const calls=[];
   const mockFetch=async url=>{const value=String(url);calls.push(value);
