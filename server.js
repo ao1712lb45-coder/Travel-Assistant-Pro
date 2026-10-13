@@ -276,6 +276,8 @@ async function fetchBesttourSearch(query, fetchImpl = fetch) {
         price: price ? `${price.toLocaleString('en-US')}元起` : '官網目前未顯示', dates: row.date || '',
         airline: '', destination: row.city || '', highlights: [], days: row.day ? `${row.day}日` : '',
         seats: Number(row.amount_2) || 0, departureCity: row.from_city || '',
+        travelStatus: String(row.travel_status == null ? '' : row.travel_status),
+        guaranteedDeparture: String(row.travel_status) === '1',
         url: `https://www.besttour.com.tw/itinerary/${code}`, source: 'besttour-search', updated: new Date().toISOString()
       };
     })

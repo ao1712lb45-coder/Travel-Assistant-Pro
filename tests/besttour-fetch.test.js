@@ -117,7 +117,7 @@ test('imports matching trips from the official Besttour search API', async () =>
     assert.equal(form.get('pageid'), '2');
     return jsonResponse({ status:'0', pagecount:'151', data:[{
       id:'BKK05JX261111SM', name:'【漫享沙美島５日】海島住宿、沙灘火舞', member_price:'29888',
-      date:'2026/11/11', day:'5', amount_2:'20', from_city:'桃園', city:'曼谷'
+      date:'2026/11/11', day:'5', amount_2:'20', travel_status:'1', from_city:'桃園', city:'曼谷'
     }, { id:'YLN02BS260719N', name:'宜蘭找茶趣２日', member_price:'5399', date:'2026/07/19', day:'2', city:'台灣 宜蘭' }] });
   };
   const result = await fetchBesttourSearch({ keyword:'沙美島', dateFrom:'2026/09/01', dateTo:'2027/08/31', page:2, pageSize:50 }, mockFetch);
@@ -128,6 +128,8 @@ test('imports matching trips from the official Besttour search API', async () =>
   assert.equal(result.trips[0].code, 'BKK05JX261111SM');
   assert.equal(result.trips[0].price, '29,888元起');
   assert.equal(result.trips[0].seats, 20);
+  assert.equal(result.trips[0].travelStatus, '1');
+  assert.equal(result.trips[0].guaranteedDeparture, true);
   assert.equal(result.trips.length, 1);
 });
 
