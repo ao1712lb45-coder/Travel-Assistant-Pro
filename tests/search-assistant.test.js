@@ -88,3 +88,9 @@ test('guaranteed availability requires both official confirmed status and positi
   {code:'TYO05BR261103C',title:'東京有位置但未成團',dates:'2026/11/03',travelStatus:'0',guaranteedDeparture:false,seats:10},
   {code:'TYO05BR261104D',title:'東京只有標題寫保證出團',dates:'2026/11/04',seats:8}
 ];const request={keyword:'東京',guaranteedAvailable:true};assert.deepEqual(searchTrips(trips,request).map(trip=>trip.code),['TYO05BR261101A']);assert.match(searchSummary(request,searchTrips(trips,request)),/官網已成團＋仍有位置/)});
+
+test('ordinary search hides sold-out departures but keeps available and unknown-seat departures',()=>{const trips=[
+  {code:'KMJ05JX270208WE',title:'熊愛九州踏雪五日',dates:'2027/02/08',seats:11},
+  {code:'KMJ05JX270209WE',title:'熊愛九州踏雪五日',dates:'2027/02/09',seats:0},
+  {code:'TYO05JX270209AA',title:'東京五日',dates:'2027/02/09'}
+];assert.deepEqual(searchTrips(trips,{keyword:'',dateRange:['2027-02-08','2027-02-09']}).flatMap(trip=>trip.departures.map(item=>item.code)),['KMJ05JX270208WE','TYO05JX270209AA'])});
