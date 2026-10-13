@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {normalizeDepartures,shortDate,filterDeparturesByRange,departureSummary,dailyPriceRows,groupedPriceRows,marketingPriceText}=require('../src/daily-prices.js');
+const {normalizeDepartures,shortDate,filterDeparturesByRange,departureSummary,lowestDeparture,itineraryUrl,dailyPriceRows,groupedPriceRows,marketingPriceText}=require('../src/daily-prices.js');
 
 test('shows a separate price for every departure date',()=>{
   const rows=dailyPriceRows([
@@ -46,4 +46,17 @@ test('supports an open date range without changing the original departure data',
   const departures=[{date:'2026/12/14',price:33900},{date:'2027/01/04',price:35900}];
   assert.deepEqual(filterDeparturesByRange(departures,'2027-01-01','').map(row=>row.date),['2027/01/04']);
   assert.equal(departures.length,2);
+});
+
+test('selected range links to its actual lowest-price departure instead of the original trip',()=>{
+  const filtered=filterDeparturesByRange([
+    {code:'TYO05JX261014AA',date:'2026/10/14',price:33900},
+    {code:'TYO05JX270110BB',date:'2027/01/10',price:36900},
+    {code:'TYO05JX270205CC',date:'2027/02/05',price:34900},
+    {code:'TYO05JX270220DD',date:'2027/02/20',price:34900}
+  ],'2027-01-01','2027-02-28');
+  const selected=lowestDeparture(filtered);
+  assert.equal(selected.code,'TYO05JX270205CC');
+  assert.equal(selected.date,'2027/02/05');
+  assert.equal(itineraryUrl(selected.code),'https://itinerary.ittms.com.tw/?travel_no=TYO05JX270205CC&agt_no=3004C5');
 });
