@@ -70,9 +70,9 @@ test('Thailand Lunar New Year search includes Chiang Mai and other Thai destinat
 test('applies month destination and departure filters together regardless of word order',()=>{const trips=[{code:'CTS05BR261101A',title:'北海道五日',dates:'2026/11/01',departureCity:'桃園'},{code:'CTS05BR261102B',title:'北海道五日',dates:'2026/11/02',departureCity:'高雄'},{code:'CTS05BR270102C',title:'北海道五日',dates:'2027/01/02',departureCity:'高雄'},{code:'TYO05BR261103D',title:'東京五日',dates:'2026/11/03',departureCity:'高雄'}];for(const phrase of ['10-12月 高雄出發北海道','高雄出發北海道 10-12月']){const results=searchTrips(trips,parseSearchRequest(phrase));assert.deepEqual(results.map(trip=>trip.code),['CTS05BR261102B'],phrase)}});
 
 test('merges identical products with different departure dates but keeps every date',()=>{const trips=[
-  {code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起',airline:'長榮航空',highlights:['藏王樹冰']},
-  {code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起',airline:'長榮航空',highlights:['藏王樹冰']}
-];const results=searchTrips(trips,{year:2027,month:1,keyword:'藏王樹冰'});assert.equal(results.length,1);assert.match(results[0].dates,/2027\/01\/01/);assert.match(results[0].dates,/2027\/01\/03/);assert.equal(results[0].price,'38,800元起');assert.equal(results[0].groupedDepartures,2)});
+  {code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起',airline:'長榮航空',highlights:['藏王樹冰'],guaranteedDeparture:true,seats:16},
+  {code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起',airline:'長榮航空',highlights:['藏王樹冰'],guaranteedDeparture:true,seats:5}
+];const results=searchTrips(trips,{year:2027,month:1,keyword:'藏王樹冰'});assert.equal(results.length,1);assert.match(results[0].dates,/2027\/01\/01/);assert.match(results[0].dates,/2027\/01\/03/);assert.equal(results[0].price,'38,800元起');assert.equal(results[0].groupedDepartures,2);assert.deepEqual(results[0].departures.map(item=>[item.date,item.seats]),[['2027/01/01',16],['2027/01/03',5]])});
 
 test('does not merge different itinerary products',()=>{const trips=[{code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',highlights:['藏王樹冰']},{code:'SDJ06BR270103SNW',title:'東北樹冰六日',dates:'2027/01/03',highlights:['藏王樹冰']}];assert.equal(searchTrips(trips,{year:2027,month:1,keyword:'藏王樹冰'}).length,2)});
 
