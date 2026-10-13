@@ -81,3 +81,10 @@ test('search assistant always outputs ITTMS links with the agency number',()=>{a
 test('merged search result uses the lowest-price departure code in its ITTMS link',()=>{const [result]=searchTrips([{code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起'},{code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起'}],{keyword:'藏王樹冰'});assert.equal(result.code,'SDJ05BR270103ZAO');assert.equal(result.url,'https://itinerary.ittms.com.tw/?travel_no=SDJ05BR270103ZAO&agt_no=3004C5')});
 
 test('search summary explains parsed date departure destination and departure count',()=>{const request=parseSearchRequest('10-12月 高雄出發北海道'),results=searchTrips([{code:'CTS05BR261101A',title:'北海道五日',dates:'2026/11/01、2026/11/08',departureCity:'高雄'}],request),summary=searchSummary(request,results);assert.match(summary,/期間：10–12 月/);assert.match(summary,/出發地：高雄/);assert.match(summary,/目的地：北海道/);assert.match(summary,/1 種行程、共 2 個出發日/)});
+
+test('guaranteed availability requires both official confirmed status and positive seats',()=>{const trips=[
+  {code:'TYO05BR261101A',title:'東京已成團有位置',dates:'2026/11/01',travelStatus:'1',guaranteedDeparture:true,seats:6},
+  {code:'TYO05BR261102B',title:'東京已成團但滿團',dates:'2026/11/02',travelStatus:'1',guaranteedDeparture:true,seats:0},
+  {code:'TYO05BR261103C',title:'東京有位置但未成團',dates:'2026/11/03',travelStatus:'0',guaranteedDeparture:false,seats:10},
+  {code:'TYO05BR261104D',title:'東京只有標題寫保證出團',dates:'2026/11/04',seats:8}
+];const request={keyword:'東京',guaranteedAvailable:true};assert.deepEqual(searchTrips(trips,request).map(trip=>trip.code),['TYO05BR261101A']);assert.match(searchSummary(request,searchTrips(trips,request)),/官網已成團＋仍有位置/)});
