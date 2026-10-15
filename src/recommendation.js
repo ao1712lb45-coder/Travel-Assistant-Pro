@@ -60,6 +60,7 @@
     const to = new Date(from); to.setFullYear(to.getFullYear() + 1);
     return { from:localDate(from), to:localDate(to) };
   }
+  function shouldRefreshCatalog(lastRefresh,now=new Date(),intervalMs=24*60*60*1000){const last=Date.parse(lastRefresh||'');return!Number.isFinite(last)||now.getTime()-last>=intervalMs}
   function expandKeyword(word) {
     const key = String(word || '').trim().toLowerCase();
     return [...new Set([key, ...(KEYWORD_ALIASES[key] || [])].map(value => String(value).toLowerCase()))];
@@ -240,7 +241,7 @@
     };
   }
 
-  global.TravelRecommendation = { REGION_CODES, STRICT_DESTINATIONS, ALL_SYNC_REGIONS, REGION_SYNC_KEYWORDS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, expandKeyword, profileSearchTerms, numberFrom, normalizeBudgetRange, destinationMatches, databaseKeywordMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
+  global.TravelRecommendation = { REGION_CODES, STRICT_DESTINATIONS, ALL_SYNC_REGIONS, REGION_SYNC_KEYWORDS, KEYWORD_ALIASES, PROFILE_TERMS, parseKeywords, contentKeywords, sixMonthRange, oneYearRange, shouldRefreshCatalog, expandKeyword, profileSearchTerms, numberFrom, normalizeBudgetRange, destinationMatches, databaseKeywordMatches, monthMatches, yearMatches, dateRangeMatches, airlineMatches, weekdayMatches, basicMatches, rankTrips, mergeOfficialTrip, applyLatestFields };
   if (typeof document === 'undefined') return;
   const $ = id => document.getElementById(id);
   const button = $('runMatch');
@@ -373,8 +374,11 @@
       const status = $('syncStatus');
       status.className = 'status show ' + (allSyncCancelled ? 'warn' : 'ok');
       status.textContent = allSyncCancelled ? `全部同步已停止，目前資料庫共有 ${database.length} 團。` : `全部地區同步完成，資料庫共有 ${database.length} 團（重複團號已自動合併）。`;
+      if(!allSyncCancelled)localStorage.setItem('travelCatalogLastRefresh',new Date().toISOString());
+      localStorage.removeItem('travelCatalogRefreshStartedAt');
       allSyncActive = false; allSyncButton.disabled = false;
     });
+    setTimeout(()=>{const started=Date.parse(localStorage.getItem('travelCatalogRefreshStartedAt')||''),alreadyRunning=Number.isFinite(started)&&Date.now()-started<2*60*60*1000;if(shouldRefreshCatalog(localStorage.getItem('travelCatalogLastRefresh'))&&!alreadyRunning&&!allSyncActive&&!syncButton.disabled){localStorage.setItem('travelCatalogRefreshStartedAt',new Date().toISOString());const status=$('syncStatus');status.className='status show warn';status.textContent='正在執行每日官網行程更新，會自動加入新上架行程並更新既有資料…';allSyncButton.click()}},1500);
     syncButton.addEventListener('click', async () => {
       const keyword = $('syncKeyword').value.trim();
       const status = $('syncStatus');
