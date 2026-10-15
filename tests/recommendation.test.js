@@ -17,6 +17,13 @@ test('all-trip sync covers every quick region without duplicates', () => {
   assert.equal(new Set(matcher.ALL_SYNC_REGIONS).size, matcher.ALL_SYNC_REGIONS.length);
 });
 
+test('catalog refresh runs once per day so newly listed trips can be discovered',()=>{
+  const now=new Date('2026-10-15T10:00:00+08:00');
+  assert.equal(matcher.shouldRefreshCatalog('',now),true);
+  assert.equal(matcher.shouldRefreshCatalog('2026-10-15T09:00:00+08:00',now),false);
+  assert.equal(matcher.shouldRefreshCatalog('2026-10-14T09:59:59+08:00',now),true);
+});
+
 test('South Europe sync expands the broad category into searchable country names', () => {
   assert.deepEqual(matcher.REGION_SYNC_KEYWORDS['南歐'], ['義大利','西班牙','葡萄牙','希臘','克羅埃西亞','斯洛維尼亞','馬爾他']);
 });
