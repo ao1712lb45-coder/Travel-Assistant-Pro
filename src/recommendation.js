@@ -377,6 +377,7 @@
       if(!allSyncCancelled)localStorage.setItem('travelCatalogLastRefresh',new Date().toISOString());
       localStorage.removeItem('travelCatalogRefreshStartedAt');
       allSyncActive = false; allSyncButton.disabled = false;
+      if(!allSyncCancelled)document.dispatchEvent(new CustomEvent('travel:catalog-refresh-complete'));
     });
     setTimeout(()=>{const started=Date.parse(localStorage.getItem('travelCatalogRefreshStartedAt')||''),alreadyRunning=Number.isFinite(started)&&Date.now()-started<2*60*60*1000;if(shouldRefreshCatalog(localStorage.getItem('travelCatalogLastRefresh'))&&!alreadyRunning&&!allSyncActive&&!syncButton.disabled){localStorage.setItem('travelCatalogRefreshStartedAt',new Date().toISOString());const status=$('syncStatus');status.className='status show warn';status.textContent='正在執行每日官網行程更新，會自動加入新上架行程並更新既有資料…';allSyncButton.click()}},1500);
     syncButton.addEventListener('click', async () => {
@@ -436,7 +437,7 @@
         }
         localStorage.removeItem('travelSyncCheckpoint');
         $('syncProgress').value = 100; $('syncProgressPercent').textContent = '100%'; $('syncProgressText').textContent = '同步完成';
-        if (typeof global.renderDb === 'function') global.renderDb();document.dispatchEvent(new CustomEvent('travel:database-updated'));
+        if (typeof global.renderDb === 'function') global.renderDb();document.dispatchEvent(new CustomEvent('travel:database-updated',{detail:{source:'official-sync',deferBackup:allSyncActive}}));
         status.className = 'status show ok';
         status.textContent = `同步完成：新增 ${checkpoint.added} 團、更新 ${checkpoint.updated} 團、略過未變更 ${checkpoint.skipped} 團，共檢查 ${checkpoint.processed} 團。`;
       } catch (error) {

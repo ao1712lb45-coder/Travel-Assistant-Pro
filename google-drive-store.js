@@ -84,13 +84,11 @@ async function createBackup(config, data, fetchImpl = fetch) {
 
 async function listBackups(config, fetchImpl = fetch) {
   const token=await authorized(config,fetchImpl);
-  const url=new URL('https://www.googleapis.com/drive/v3/files');
-  url.searchParams.set('q',`'${config.folderId}' in parents and trashed = false and name contains 'travel-assistant-backup-'`);
-  url.searchParams.set('orderBy','createdTime desc');url.searchParams.set('pageSize','50');url.searchParams.set('fields','files(id,name,createdTime,size,description)');
-  const response=await fetchImpl(url,{headers:{authorization:`Bearer ${token}`}}), payload=await responseJson(response,'Google Drive 備份清單無法辨識。');
-  if(!response.ok)throw new GoogleDriveError('GOOGLE_DRIVE_LIST',`Google Drive 備份清單讀取失敗：${payload.error?.message || `HTTP ${response.status}`}`,502);
-  return payload.files || [];
+  const files=[];let pageToken='';
+  do{const url=new URL('https://www.googleapis.com/drive/v3/files');url.searchParams.set('q',`'${config.folderId}' in parents and trashed = false and name contains 'travel-assistant-backup-'`);url.searchParams.set('orderBy','createdTime desc');url.searchParams.set('pageSize','100');url.searchParams.set('fields','nextPageToken,files(id,name,createdTime,size,description)');if(pageToken)url.searchParams.set('pageToken',pageToken);const response=await fetchImpl(url,{headers:{authorization:`Bearer ${token}`}}),payload=await responseJson(response,'Google Drive 備份清單無法辨識。');if(!response.ok)throw new GoogleDriveError('GOOGLE_DRIVE_LIST',`Google Drive 備份清單讀取失敗：${payload.error?.message || `HTTP ${response.status}`}`,502);files.push(...(payload.files||[]));pageToken=String(payload.nextPageToken||'')}while(pageToken);
+  return files;
 }
+async function pruneBackups(config,fetchImpl=fetch,keep=3){const backups=await listBackups(config,fetchImpl),obsolete=backups.slice(Math.max(0,Number(keep)||3));if(!obsolete.length)return{kept:backups.length,deleted:0};const token=await authorized(config,fetchImpl);for(const file of obsolete){const response=await fetchImpl(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`,{method:'DELETE',headers:{authorization:`Bearer ${token}`}});if(!response.ok)throw new GoogleDriveError('GOOGLE_DRIVE_DELETE',`Google Drive 舊備份刪除失敗：HTTP ${response.status}`,502)}return{kept:Math.min(backups.length,Math.max(0,Number(keep)||3)),deleted:obsolete.length}}
 
 async function readBackup(config, id, fetchImpl = fetch) {
   if(!/^[\w-]{10,200}$/.test(String(id||'')))throw new GoogleDriveError('INVALID_BACKUP_ID','備份檔案代碼無效。',400);
@@ -103,4 +101,4 @@ async function readBackup(config, id, fetchImpl = fetch) {
   return payload;
 }
 
-module.exports={GoogleDriveError,driveConfig,accessToken,oauthUrl,stateToken,validState,createBackup,listBackups,readBackup};
+module.exports={GoogleDriveError,driveConfig,accessToken,oauthUrl,stateToken,validState,createBackup,listBackups,pruneBackups,readBackup};

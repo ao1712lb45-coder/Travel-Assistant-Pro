@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createServer, isAuthorized } = require('../server');
+const { createServer, isAuthorized, taipeiCatalogRange } = require('../server');
 
 function basic(user, password) {
   return `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
@@ -16,6 +16,8 @@ test('authorization accepts only the configured team credentials', () => {
   assert.equal(isAuthorized({ headers:{ authorization:basic('team','secret') } }, 'team', 'secret'), true);
   assert.equal(isAuthorized({ headers:{ authorization:basic('team','wrong') } }, 'team', 'secret'), false);
 });
+
+test('background catalog refresh uses the Taiwan date and covers one year',()=>{assert.deepEqual(taipeiCatalogRange(new Date('2026-10-15T16:30:00Z')),{from:'2026/10/16',to:'2027/10/16'})});
 
 test('online deployment protects the app but leaves health checks available', async () => {
   const server = createServer({ appUser:'team', appPassword:'secret', fetchImpl:async()=>{ throw new Error('not used'); } });
