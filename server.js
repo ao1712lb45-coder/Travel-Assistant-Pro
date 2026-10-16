@@ -20,6 +20,7 @@ const SEARCH_DESTINATION_ALIASES = {
 const CHINA_AIRPORT_CODES = ['PEK','PKX','PVG','SHA','CAN','SZX','CTU','TFU','CKG','KMG','XIY','CSX','DYG','XNN','URC','LXA','HGH','NKG','WUH','CGO','TAO','TNA','HRB','DLC','SHE','FOC','XMN','KWL','HAK','SYX','KHN','HFE','TYN','LJG','KWE','INC','HET','DSN','LHW','JHG','WNZ','YIW','WUX','NTG','YNT','WEH','SJW','NNG','ZUH','SWA'];
 const BACKGROUND_SEARCH_KEYWORDS=['日本','韓國','中國','東南亞','北歐','美加','紐澳','法國','德國','瑞士','奧地利','荷蘭','比利時','英國','愛爾蘭','義大利','西班牙','葡萄牙','希臘','克羅埃西亞','斯洛維尼亞','馬爾他','捷克','匈牙利','波蘭','斯洛伐克','羅馬尼亞','保加利亞','巴爾幹','土耳其','埃及','杜拜','阿聯酋','摩洛哥','南非','肯亞','約旦','以色列'];
 const BACKGROUND_REFRESH_INTERVAL_MS=24*60*60*1000;
+let backgroundCatalogController=null;
 
 class FetchError extends Error {
   constructor(code, message, status = 400) {
@@ -425,7 +426,7 @@ function createServer(options = {}) {
       applySecurityHeaders(res);
       const requestUrl = new URL(req.url, 'http://localhost');
       if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
-        return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'2.2.0', protected:Boolean(appPassword) } });
+        return sendJson(res, 200, { ok:true, data:{ service:'Travel Assistant Pro', version:'2.2.0', protected:Boolean(appPassword), backgroundRefresh:backgroundCatalogController?backgroundCatalogController.status():{running:false,lastResult:null,lastError:'尚未啟動'} } });
       }
       if (req.method === 'GET' && requestUrl.pathname === '/privacy.html') return serveFile(res, requestUrl.pathname);
       if (!isAuthorized(req, appUser, appPassword)) return requestLogin(res);
@@ -475,7 +476,7 @@ function createServer(options = {}) {
 
 if (require.main === module) {
   const host = process.env.HOST || '0.0.0.0';
-  createServer().listen(PORT, host, () => {console.log(`Travel Assistant Pro: http://localhost:${PORT}`);startBackgroundCatalogRefresh()});
+  createServer().listen(PORT, host, () => {console.log(`Travel Assistant Pro: http://localhost:${PORT}`);backgroundCatalogController=startBackgroundCatalogRefresh({initialDelayMs:10_000})});
 }
 
 module.exports = { FetchError, ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchOfficialItinerary,
