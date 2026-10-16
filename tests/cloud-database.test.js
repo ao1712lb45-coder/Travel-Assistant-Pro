@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { mergeTrips, mergeClients, changedTrips, latestBackupNeedsDownload } = require('../src/cloud-database');
+const { mergeTrips, mergeClients, changedTrips, backupTripCount, latestBackupNeedsDownload } = require('../src/cloud-database');
 
 test('cloud merge returns only one record for each normalized tour code', () => {
   const merged = mergeTrips(
@@ -27,4 +27,11 @@ test('downloads Drive only when the local cache is missing or the latest backup 
   assert.equal(latestBackupNeedsDownload('drive-2','drive-1',true),true);
   assert.equal(latestBackupNeedsDownload('drive-2','drive-2',false),true);
   assert.equal(latestBackupNeedsDownload('drive-2','',true),true);
+});
+
+test('downloads the same Drive version again when the local catalog unexpectedly shrank',()=>{
+  const row={description:'Travel Assistant 備份：10538 團、1 位客戶'};
+  assert.equal(backupTripCount(row),10538);
+  assert.equal(latestBackupNeedsDownload('drive-2','drive-2',true,6853,backupTripCount(row)),true);
+  assert.equal(latestBackupNeedsDownload('drive-2','drive-2',true,10538,backupTripCount(row)),false);
 });
