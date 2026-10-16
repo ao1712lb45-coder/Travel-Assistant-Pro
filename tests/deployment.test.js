@@ -81,6 +81,8 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(bulkImportScript, /function\(global\)/);
     assert.match(page, /data-tab="lineOut">社群文案/);
     assert.match(page, /id="regenLine">換一篇文案/);
+    assert.match(page, /function titleHasDays\(title\)/);
+    assert.match(page, /d\.days&&!titleHasDays\(d\.title\)/);
     assert.doesNotMatch(page, /data-tab="fbOut">Facebook/);
     assert.doesNotMatch(page, /data-tab="threadsOut">Threads/);
     assert.match(page, /id="quickRegionSync"/);
