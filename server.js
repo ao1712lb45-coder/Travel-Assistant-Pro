@@ -18,6 +18,8 @@ const SEARCH_DESTINATION_ALIASES = {
   '中國':['中國','大陸','北京','上海','江南','杭州','蘇州','南京','張家界','湖南','四川','成都','重慶','九寨溝','雲南','昆明','麗江','貴州','桂林','廣西','海南','三亞','西安','陝西','山東','青島','山西','河南','新疆','西藏','內蒙古','東北三省','哈爾濱','大連','甘肅','敦煌','寧夏','福建','廈門','武夷山','廣東','潮汕','黃山','江西']
 };
 const CHINA_AIRPORT_CODES = ['PEK','PKX','PVG','SHA','CAN','SZX','CTU','TFU','CKG','KMG','XIY','CSX','DYG','XNN','URC','LXA','HGH','NKG','WUH','CGO','TAO','TNA','HRB','DLC','SHE','FOC','XMN','KWL','HAK','SYX','KHN','HFE','TYN','LJG','KWE','INC','HET','DSN','LHW','JHG','WNZ','YIW','WUX','NTG','YNT','WEH','SJW','NNG','ZUH','SWA'];
+const BACKGROUND_SEARCH_KEYWORDS=['日本','韓國','中國','東南亞','北歐','美加','紐澳','法國','德國','瑞士','奧地利','荷蘭','比利時','英國','愛爾蘭','義大利','西班牙','葡萄牙','希臘','克羅埃西亞','斯洛維尼亞','馬爾他','捷克','匈牙利','波蘭','斯洛伐克','羅馬尼亞','保加利亞','巴爾幹','土耳其','埃及','杜拜','阿聯酋','摩洛哥','南非','肯亞','約旦','以色列'];
+const BACKGROUND_REFRESH_INTERVAL_MS=24*60*60*1000;
 
 class FetchError extends Error {
   constructor(code, message, status = 400) {
@@ -376,6 +378,29 @@ function requestLogin(res) {
   res.end('請輸入 Travel Assistant Pro 團隊帳號與密碼。');
 }
 
+function taipeiCatalogRange(now=new Date()){
+  const values=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,Number(part.value)]));
+  const endYear=values.year+1,endDay=Math.min(values.day,new Date(Date.UTC(endYear,values.month,0)).getUTCDate()),pad=value=>String(value).padStart(2,'0');
+  return{from:`${values.year}/${pad(values.month)}/${pad(values.day)}`,to:`${endYear}/${pad(values.month)}/${pad(endDay)}`};
+}
+async function fetchBackgroundCatalog(fetchImpl=fetch,now=new Date()){
+  const range=taipeiCatalogRange(now),byCode=new Map();
+  for(const keyword of BACKGROUND_SEARCH_KEYWORDS){let page=1,totalPages=1;do{const result=await fetchBesttourSearch({keyword,dateFrom:range.from,dateTo:range.to,page,pageSize:50},fetchImpl);for(const trip of result.trips||[]){const code=String(trip.code||'').toUpperCase();if(code)byCode.set(code,trip)}totalPages=Math.min(100,Number(result.totalPages)||1);page++}while(page<=totalPages)}
+  return{range,trips:[...byCode.values()]};
+}
+async function refreshDriveCatalog(drive=googleDrive.driveConfig(),fetchImpl=fetch,now=new Date()){
+  if(!drive.configured)return{skipped:true,reason:'Google Drive 尚未完成設定'};
+  const backups=await googleDrive.listBackups(drive,fetchImpl),latest=backups[0]?await googleDrive.readBackup(drive,backups[0].id,fetchImpl):{trips:[],clients:[]},official=await fetchBackgroundCatalog(fetchImpl,now),byCode=new Map((latest.trips||[]).map(trip=>[String(trip.code||'').toUpperCase(),trip]));
+  let added=0,updated=0;for(const trip of official.trips){const code=String(trip.code||'').toUpperCase(),old=byCode.get(code);if(!old)added++;else if(['title','mainTitle','price','dates','seats','travelStatus','guaranteedDeparture','promotions','destination','departureCity'].some(key=>String(old[key]??'')!==String(trip[key]??'')))updated++;byCode.set(code,{...(old||{}),...trip,code,updated:new Date(now).toISOString()})}
+  const backup=await googleDrive.createBackup(drive,{trips:[...byCode.values()],clients:Array.isArray(latest.clients)?latest.clients:[]},fetchImpl),retention=await googleDrive.pruneBackups(drive,fetchImpl,3);
+  return{skipped:false,added,updated,officialCount:official.trips.length,totalTrips:byCode.size,clientCount:Array.isArray(latest.clients)?latest.clients.length:0,range:official.range,backupId:backup.id,retention};
+}
+function startBackgroundCatalogRefresh(options={}){
+  const drive=options.drive||googleDrive.driveConfig(),fetchImpl=options.fetchImpl||fetch,intervalMs=Number(options.intervalMs)||BACKGROUND_REFRESH_INTERVAL_MS,initialDelayMs=options.initialDelayMs==null?60_000:Number(options.initialDelayMs);let running=false,lastResult=null,lastError='';
+  const run=async()=>{if(running)return;running=true;try{lastResult=await refreshDriveCatalog(drive,fetchImpl);lastError='';console.log('[background-refresh]',JSON.stringify(lastResult))}catch(error){lastError=error?.message||String(error);console.error('[background-refresh]',lastError)}finally{running=false}};
+  const first=setTimeout(run,Math.max(0,initialDelayMs));first.unref?.();const timer=setInterval(run,intervalMs);timer.unref?.();return{run,stop(){clearTimeout(first);clearInterval(timer)},status(){return{running,lastResult,lastError}}};
+}
+
 function serveFile(res, pathname) {
   const relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.slice(1));
   const target = path.resolve(ROOT, relative);
@@ -420,7 +445,7 @@ function createServer(options = {}) {
         const html=`<!doctype html><meta charset="utf-8"><title>Google Drive 授權完成</title><style>body{font-family:system-ui;max-width:760px;margin:60px auto;padding:24px}code{display:block;word-break:break-all;background:#eef6f5;padding:16px;border-radius:10px}b{color:#087a70}</style><h1>Google Drive 授權成功</h1><p>請把下方內容填入 Render 的 <b>GOOGLE_DRIVE_REFRESH_TOKEN</b>，儲存部署後即可關閉此頁。</p><code>${escaped}</code><p>這是私密憑證，請勿貼到聊天室或 GitHub。</p>`;
         res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});return res.end(html);
       }
-      if(req.method==='POST'&&requestUrl.pathname==='/api/google-drive/backups')return sendJson(res,200,{ok:true,data:await googleDrive.createBackup(drive,await readJsonBody(req,64*1024*1024),fetchImpl)});
+      if(req.method==='POST'&&requestUrl.pathname==='/api/google-drive/backups'){const data=await googleDrive.createBackup(drive,await readJsonBody(req,64*1024*1024),fetchImpl);data.retention=await googleDrive.pruneBackups(drive,fetchImpl,3);return sendJson(res,200,{ok:true,data})}
       if(req.method==='GET'&&requestUrl.pathname==='/api/google-drive/backups')return sendJson(res,200,{ok:true,data:{backups:await googleDrive.listBackups(drive,fetchImpl)}});
       if(req.method==='GET'&&requestUrl.pathname==='/api/google-drive/backups/restore')return sendJson(res,200,{ok:true,data:await googleDrive.readBackup(drive,requestUrl.searchParams.get('id'),fetchImpl)});
       if (req.method === 'GET' && ['/api/itinerary/fetch', '/api/besttour/fetch'].includes(requestUrl.pathname)) {
@@ -450,10 +475,11 @@ function createServer(options = {}) {
 
 if (require.main === module) {
   const host = process.env.HOST || '0.0.0.0';
-  createServer().listen(PORT, host, () => console.log(`Travel Assistant Pro: http://localhost:${PORT}`));
+  createServer().listen(PORT, host, () => {console.log(`Travel Assistant Pro: http://localhost:${PORT}`);startBackgroundCatalogRefresh()});
 }
 
 module.exports = { FetchError, ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchOfficialItinerary,
   fetchBesttourApiItinerary, fetchItinerarySchedule, matchSchedule, searchItineraryContents, fetchBesttourSearch, fetchItineraryPage, fetchBesttourPage,
+  BACKGROUND_SEARCH_KEYWORDS, taipeiCatalogRange, fetchBackgroundCatalog, refreshDriveCatalog, startBackgroundCatalogRefresh,
   safeEqual, isAuthorized, createServer };
 
