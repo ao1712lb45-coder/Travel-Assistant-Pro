@@ -26,16 +26,10 @@
     if(record.guaranteedDeparture===true&&Number(record.seats)>0){const date=shortDepartureDate(record.dates);return `🎉 保證出團・安心成行｜${date?`${date} 尚有`:'目前尚有'} ${Number(record.seats)} 席\n`}
     return '';
   }
-  function itineraryUrl(code){const value=clean(code).toUpperCase();return value?`https://itinerary.ittms.com.tw/?travel_no=${encodeURIComponent(value)}&agt_no=3004C5`:''}
-  function expandDepartureRecords(record){
-    const departures=Array.isArray(record?.departures)?record.departures.filter(item=>clean(item?.code)&&clean(item?.date||item?.dates)):[];
-    if(departures.length<=1)return [record];
-    return departures.map(item=>{const code=clean(item.code).toUpperCase(),date=clean(item.date||item.dates);return {...record,code,dates:date,price:item.price||record.price||'',seats:Number(item.seats)||0,travelStatus:clean(item.travelStatus),guaranteedDeparture:item.guaranteedDeparture===true||clean(item.travelStatus)==='1',departures:[{...item,code,date}],groupedDepartures:1,url:itineraryUrl(code)}});
-  }
   function joinBatchMaterials(items,options={}){
-    const expanded=(items||[]).flatMap(item=>expandDepartureRecords(item.record).map(record=>({...item,record}))),count=expanded.length,contact=[options.contact,options.line?`LINE ${options.line}`:''].filter(Boolean).join('\n');
-    const hasGuaranteed=expanded.some(({record})=>guaranteedNotice(record));
-    const trips=expanded.map(({record},index)=>{const highlights=(record.highlights||[]).slice(0,5).map(item=>`✅ ${item}`).join('\n'),guaranteed=guaranteedNotice(record);return`【${index+1}｜${record.title||record.mainTitle||record.code}】\n${guaranteed}${highlights?`${highlights}\n`:''}${record.airline?`✈️ ${record.airline}\n`:''}${record.dates?`📅 ${record.dates}\n`:''}${record.price?`💰 ${record.price}\n`:''}${record.url?`🔗 ${record.url}`:''}`.trim()}).join('\n\n━━━━━━━━━━━━━━━━\n\n');
+    const count=items.length,contact=[options.contact,options.line?`LINE ${options.line}`:''].filter(Boolean).join('\n');
+    const hasGuaranteed=items.some(({record})=>guaranteedNotice(record));
+    const trips=items.map(({record},index)=>{const highlights=(record.highlights||[]).slice(0,5).map(item=>`✅ ${item}`).join('\n'),guaranteed=guaranteedNotice(record);return`【${index+1}｜${record.title||record.mainTitle||record.code}】\n${guaranteed}${highlights?`${highlights}\n`:''}${record.airline?`✈️ ${record.airline}\n`:''}${record.dates?`📅 ${record.dates}\n`:''}${record.price?`💰 ${record.price}\n`:''}${record.url?`🔗 ${record.url}`:''}`.trim()}).join('\n\n━━━━━━━━━━━━━━━━\n\n');
     const ending=`\n\n${hasGuaranteed?'保證出團行程請見個別標示；':''}價格與機位會即時變動，仍以報名確認為準。想確認適合的日期，歡迎直接詢問。${contact?`\n\n${contact}`:''}`;
     return {
       lineOut:`✈️ 以下是我整理的 ${count} 個精選行程～\n可以一起比較日期、航空公司和價格：\n\n${trips}${ending}`,
@@ -99,5 +93,5 @@
     singleButton.addEventListener('click',event=>{const codes=[codeInput?.value,...document.querySelectorAll('.extra-tour-code')].map(item=>clean(item&&item.value!==undefined?item.value:item)).filter(Boolean);if(codes.length<=1)return;event.preventDefault();event.stopImmediatePropagation();document.getElementById('bulkItineraryInput').value=codes.join('\n');panel.style.display='block';toggle.textContent='收起批次匯入';document.getElementById('runBulkImport').click()},true);
   }
   if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install()}
-  return {parseBulkEntries,analyzeBulkEntries,recordFromResult,mergeRecords,shortDepartureDate,guaranteedNotice,itineraryUrl,expandDepartureRecords,joinBatchMaterials,withTimeout,validateParsedResult,install};
+  return {parseBulkEntries,analyzeBulkEntries,recordFromResult,mergeRecords,shortDepartureDate,guaranteedNotice,joinBatchMaterials,withTimeout,validateParsedResult,install};
 });
