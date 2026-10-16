@@ -1,5 +1,5 @@
 'use strict';
-const test=require('node:test');const assert=require('node:assert/strict');const {parseSearchRequest,searchTrips,officialSearchPlan,ittmsUrl,searchSummary}=require('../src/search-assistant.js');
+const test=require('node:test');const assert=require('node:assert/strict');const {parseSearchRequest,searchTrips,officialSnapshot,officialSearchPlan,ittmsUrl,searchSummary}=require('../src/search-assistant.js');
 
 test('understands next January and a scenic keyword',()=>{const result=parseSearchRequest('給我明年1月所有藏王樹冰的行程',new Date('2026-07-20T00:00:00+08:00'));assert.equal(result.year,2027);assert.equal(result.month,1);assert.equal(result.keyword,'藏王樹冰')});
 
@@ -77,6 +77,11 @@ test('merges identical products with different departure dates but keeps every d
 test('does not merge different itinerary products',()=>{const trips=[{code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',highlights:['藏王樹冰']},{code:'SDJ06BR270103SNW',title:'東北樹冰六日',dates:'2027/01/03',highlights:['藏王樹冰']}];assert.equal(searchTrips(trips,{year:2027,month:1,keyword:'藏王樹冰'}).length,2)});
 
 test('search assistant always outputs ITTMS links with the agency number',()=>{assert.equal(ittmsUrl('TYO06FD261107KK'),'https://itinerary.ittms.com.tw/?travel_no=TYO06FD261107KK&agt_no=3004C5');const [result]=searchTrips([{code:'TYO06FD261107KK',title:'東京六日',dates:'2026/11/07',url:'https://www.besttour.com.tw/itinerary/TYO06FD261107KK'}],{keyword:'東京'});assert.equal(result.url,'https://itinerary.ittms.com.tw/?travel_no=TYO06FD261107KK&agt_no=3004C5')});
+
+test('official snapshot excludes stale cached tour numbers and keeps fresh official code',()=>{const cached=[
+  {code:'FUK05BR270207VK',title:'高雄出發新春羊年遊九州五天',dates:'2027/02/07',price:'54,900元起'},
+  {code:'FUK05BR270207LK',title:'舊快取名稱',dates:'2027/02/07',airline:'長榮航空'}
+],fresh=[{code:'FUK05BR270207LK',title:'高雄出發九州迎春五日',dates:'2027/02/07',price:'56,800元起',seats:7}];const snapshot=officialSnapshot(cached,fresh);assert.deepEqual(snapshot.map(trip=>trip.code),['FUK05BR270207LK']);assert.equal(snapshot[0].title,'高雄出發九州迎春五日');assert.equal(snapshot[0].airline,'長榮航空');const [result]=searchTrips(snapshot,{keyword:'九州',dateRange:['2027-02-07','2027-02-07']});assert.equal(result.code,'FUK05BR270207LK');assert.equal(result.url,'https://itinerary.ittms.com.tw/?travel_no=FUK05BR270207LK&agt_no=3004C5')});
 
 test('merged search result uses the lowest-price departure code in its ITTMS link',()=>{const [result]=searchTrips([{code:'SDJ05BR270101ZAO',title:'藏王樹冰五日',dates:'2027/01/01',price:'39,800元起'},{code:'SDJ05BR270103ZAO',title:'藏王樹冰五日',dates:'2027/01/03',price:'38,800元起'}],{keyword:'藏王樹冰'});assert.equal(result.code,'SDJ05BR270103ZAO');assert.equal(result.url,'https://itinerary.ittms.com.tw/?travel_no=SDJ05BR270103ZAO&agt_no=3004C5')});
 
