@@ -30,7 +30,7 @@
     const count=items.length,contact=[options.contact,options.line?`LINE ${options.line}`:''].filter(Boolean).join('\n');
     const hasGuaranteed=items.some(({record})=>guaranteedNotice(record));
     const trips=items.map(({record},index)=>{const highlights=(record.highlights||[]).slice(0,5).map(item=>`✅ ${item}`).join('\n'),guaranteed=guaranteedNotice(record);return`【${index+1}｜${record.title||record.mainTitle||record.code}】\n${guaranteed}${highlights?`${highlights}\n`:''}${record.airline?`✈️ ${record.airline}\n`:''}${record.dates?`📅 ${record.dates}\n`:''}${record.price?`💰 ${record.price}\n`:''}${record.url?`🔗 ${record.url}`:''}`.trim()}).join('\n\n━━━━━━━━━━━━━━━━\n\n');
-    const ending=`\n\n${hasGuaranteed?'保證出團，席次有限；':''}以上行程的價格與機位會即時變動，仍以報名確認為準。想確認適合的日期，歡迎直接詢問。${contact?`\n\n${contact}`:''}`;
+    const ending=`\n\n${hasGuaranteed?'保證出團行程請見個別標示；':''}價格與機位會即時變動，仍以報名確認為準。想確認適合的日期，歡迎直接詢問。${contact?`\n\n${contact}`:''}`;
     return {
       lineOut:`✈️ 以下是我整理的 ${count} 個精選行程～\n可以一起比較日期、航空公司和價格：\n\n${trips}${ending}`,
       fbOut:`【${count} 個精選行程一次整理】\n\n以下是近期值得比較的行程，已將主要亮點、日期與價格整理在一起：\n\n${trips}${ending}`,
