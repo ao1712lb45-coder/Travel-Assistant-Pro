@@ -370,7 +370,7 @@
         const region = ALL_SYNC_REGIONS[index];
         await syncRegionKeywords(region, `全部同步進度 ${index + 1}/${ALL_SYNC_REGIONS.length}：正在下載`);
       }
-      const database = (() => { try { return JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) { return []; } })();
+      const database = global.TravelTripStorage.read();
       const status = $('syncStatus');
       status.className = 'status show ' + (allSyncCancelled ? 'warn' : 'ok');
       status.textContent = allSyncCancelled ? `全部同步已停止，目前資料庫共有 ${database.length} 團。` : `全部地區同步完成，資料庫共有 ${database.length} 團（重複團號已自動合併）。`;
@@ -395,8 +395,7 @@
       $('syncProgressBox').style.display = 'block';
       status.className = 'status show warn'; status.textContent = checkpoint.processed ? `從上次的 ${checkpoint.processed} 團後繼續…` : '正在分批同步官網行程，每批會立即儲存…';
       try {
-        let database = [];
-        try { database = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
+        let database = global.TravelTripStorage.read();
         const byCode = new Map(database.map(trip => [trip.code, trip]));
         let completed = false, stopped = false, officialPages = 0;
         while (checkpoint.processed < limit && !completed) {
@@ -418,7 +417,7 @@
             else { byCode.set(trip.code, trip); checkpoint.added++; }
           });
           checkpoint.processed += rows.length; checkpoint.nextPage++;
-          localStorage.setItem('travelV10Db', JSON.stringify([...byCode.values()]));
+          global.TravelTripStorage.write([...byCode.values()]);
           localStorage.setItem('travelSyncCheckpoint', JSON.stringify(checkpoint));
           const percent = Math.min(99, Math.round(checkpoint.processed / Math.max(1, limit) * 100));
           $('syncProgress').value = percent; $('syncProgressPercent').textContent = percent + '%';
@@ -450,14 +449,14 @@
   const refreshButton = $('refreshDb');
   if (refreshButton) refreshButton.addEventListener('click', async () => {
     const status = $('refreshStatus'); const query = String($('dbSearch').value || '').trim().toLowerCase();
-    let database = []; try { database = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
+    let database = global.TravelTripStorage.read();
     const candidates = database.filter(trip => trip.code && (!query || `${trip.code} ${trip.title || trip.mainTitle || ''}`.toLowerCase().includes(query))).slice(0, 50);
     if (!candidates.length) { status.className='status show warn'; status.textContent='目前搜尋結果沒有可更新的團。'; return; }
     refreshButton.disabled=true; refreshButton.textContent='正在確認官網…';status.className='status show warn';status.textContent=`正在重新確認 ${candidates.length} 團的價格、機位與出發日…`;
     const byCode = new Map(database.map(trip => [trip.code, trip])); let cursor=0, success=0, failed=0;
     async function worker(){while(cursor<candidates.length){const trip=candidates[cursor++];try{const payload=await fetchJsonWithRetry('/api/itinerary/fetch?url='+encodeURIComponent(trip.code),2,45000);byCode.set(trip.code,applyLatestFields(trip,payload.data));success++;}catch(_){failed++;}status.textContent=`已確認 ${success+failed} / ${candidates.length} 團…`;}}
     await Promise.all(Array.from({length:Math.min(4,candidates.length)},worker));
-    localStorage.setItem('travelV10Db',JSON.stringify([...byCode.values()]));if(typeof global.renderDb==='function')global.renderDb();
+    global.TravelTripStorage.write([...byCode.values()]);if(typeof global.renderDb==='function')global.renderDb();
     status.className='status show '+(success?'ok':'err');status.textContent=`官網確認完成：成功 ${success} 團${failed?`、暫時失敗 ${failed} 團`:''}。已更新最低價、可見出發日、航空公司與當團機位。`;refreshButton.disabled=false;refreshButton.textContent='更新目前搜尋結果';
   });
   async function searchOfficialKeywords(words) {
@@ -474,7 +473,7 @@
     button.disabled = true; button.textContent = '正在搜尋本機與 Besttour 官網…';
     const status = $('matchStatus'); status.className = 'status show warn'; status.textContent = '正在比對行程名稱、景點特色與官網關鍵字…';
     let trips = [];
-    try { trips = JSON.parse(localStorage.getItem('travelV10Db') || '[]'); } catch (_) {}
+    trips = global.TravelTripStorage.read();
     let customerRequest = {}; try { customerRequest=JSON.parse(button.dataset.customerRequest||'{}'); } catch (_) {}
     const keywordWords = contentKeywords($('matchKeywords').value);
     const travelerNeeds = { travelerType:$('travelerType').value, avoidSlopes:$('avoidSlopes').checked,
@@ -494,7 +493,7 @@
             officialMatchedKeywords:[...new Set([...(old.officialMatchedKeywords||[]),...(trip.officialMatchedKeywords||[])])] });
           else byCode.set(trip.code, trip);
         });
-        trips = [...byCode.values()]; localStorage.setItem('travelV10Db', JSON.stringify(trips));
+        trips = [...byCode.values()]; global.TravelTripStorage.write(trips);
         if (typeof global.renderDb === 'function') global.renderDb();
       } catch (error) { officialError = error.message; }
     }
@@ -521,7 +520,7 @@
               highlights:[...new Set([...(old.highlights||[]),...attractions])]
             });
           });
-          trips = [...byCode.values()]; localStorage.setItem('travelV10Db', JSON.stringify(trips));
+          trips = [...byCode.values()]; global.TravelTripStorage.write(trips);
         } catch (error) { officialError = officialError || error.message; }
       }
     }
