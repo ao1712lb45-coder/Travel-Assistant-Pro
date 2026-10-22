@@ -83,8 +83,8 @@
         }catch(error){failed.push(`${entry}：${stopped?'已停止':error.name==='AbortError'||error.name==='TimeoutError'?'等待超過 20 秒':error.message}`)}
         finally{activeControllers.delete(controller);completed+=1;const percent=Math.round((completed/entries.length)*100);progressBar.value=percent;progressPercent.textContent=`${percent}%`;progressLabel.textContent=`已完成 ${completed} / ${entries.length} 團`;status.textContent=`已完成 ${completed} / ${entries.length} 團`}
       }));
-      let database=[];try{database=JSON.parse(localStorage.getItem('travelV10Db')||'[]')}catch(_){}
-      localStorage.setItem('travelV10Db',JSON.stringify(mergeRecords(database,saved)));if(saved.length)document.dispatchEvent(new CustomEvent('travel:database-updated',{detail:{source:'bulk-import'}}));
+      const database=global.TravelTripStorage.read();
+      global.TravelTripStorage.write(mergeRecords(database,saved));if(saved.length)document.dispatchEvent(new CustomEvent('travel:database-updated',{detail:{source:'bulk-import'}}));
       const duplicateNote=analysis.duplicateCount?`輸入 ${analysis.inputCount} 團，其中重複 ${analysis.duplicateCount} 團，實際處理 ${entries.length} 團。`:`共處理 ${entries.length} 團。`;
       progressLabel.textContent=stopped?`已停止，共處理 ${completed} / ${entries.length} 團`:`匯入完成，${duplicateNote}`;status.textContent=`${stopped?'批次匯入已停止':'批次匯入完成'}：${duplicateNote}成功 ${saved.length} 團，失敗 ${failed.length} 團。${failed.length?' 失敗項目：'+failed.join('；'):''}`;status.className='status show '+(failed.length||stopped?'warn':'ok');button.disabled=false;stopButton.disabled=true;
       renderImported(saved);if(saved.length){const generated=generateBatchMaterials(saved);status.textContent+=` 已產生 ${generated} 個行程文案，請按「下一步」查看行銷素材。`}

@@ -32,7 +32,7 @@
     if (typeof document === 'undefined') return;
     const dbSection=document.getElementById('syncBesttour')?.closest('.section');
     if (!dbSection || document.getElementById('databaseDashboard')) return;
-    const readDb=()=>{try{return JSON.parse(localStorage.getItem('travelV10Db')||'[]')}catch(_){return[]}};
+    const readDb=()=>global.TravelTripStorage.read();
     const dashboard=document.createElement('div');dashboard.id='databaseDashboard';dashboard.innerHTML=`<div class="db-dashboard"><div class="db-stat"><b id="dashTotal">0</b><span>資料庫總團數</span></div><div class="db-stat"><b id="dashActive">0</b><span>未過期行程</span></div><div class="db-stat"><b id="dashLowSeats">0</b><span>剩餘 5 席內</span></div><div class="db-stat"><b id="dashExpired">0</b><span>已過期</span></div><div class="db-stat"><b id="dashLatest">—</b><span>最晚出發日</span></div></div><div class="hint" style="margin-top:10px"><b>最近異動</b><div id="databaseChanges" style="margin-top:6px">尚無同步異動紀錄。</div><div class="btnrow"><button id="cleanupExpiredTrips">清除已過期行程</button><button id="clearChangeLog">清除異動紀錄</button></div><div class="small" id="lastDatabaseSync"></div></div>`;
     dbSection.querySelector('h2').insertAdjacentElement('afterend',dashboard);
     function render() {
@@ -42,7 +42,7 @@
       const meta=JSON.parse(localStorage.getItem('travelDatabaseSyncMeta')||'null');document.getElementById('lastDatabaseSync').textContent=meta?`上次同步：${new Date(meta.at).toLocaleString('zh-TW')}｜新增 ${meta.added}、降價 ${meta.priceDown}、漲價 ${meta.priceUp}、其他異動 ${meta.changed}`:'尚未記錄同步時間。';
       const logs=JSON.parse(localStorage.getItem('travelDatabaseChanges')||'[]');document.getElementById('databaseChanges').innerHTML=logs.length?logs.slice(0,30).map(log=>`<div class="change-row ${log.type}"><span>${log.label}</span><b>${log.code||''}</b><span>${log.detail||''}</span></div>`).join(''):'尚無同步異動紀錄。';
     }
-    document.getElementById('cleanupExpiredTrips').onclick=()=>{const db=readDb(),kept=db.filter(trip=>!isExpired(trip));if(confirm(`確定清除 ${db.length-kept.length} 個已過期行程？`)){localStorage.setItem('travelV10Db',JSON.stringify(kept));global.renderDb?.();render()}};
+    document.getElementById('cleanupExpiredTrips').onclick=()=>{const db=readDb(),kept=db.filter(trip=>!isExpired(trip));if(confirm(`確定清除 ${db.length-kept.length} 個已過期行程？`)){global.TravelTripStorage.write(kept);global.renderDb?.();render()}};
     document.getElementById('clearChangeLog').onclick=()=>{localStorage.removeItem('travelDatabaseChanges');render()};
     let before=null;
     const start=()=>{if(!before)before=readDb()};
