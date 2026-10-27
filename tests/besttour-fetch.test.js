@@ -211,7 +211,7 @@ test('searches hidden attractions inside the complete daily itinerary', async ()
     return jsonResponse({ status:'0', data:[
       { day:'1', date:'2026/11/04', abstract_1:'桃園－福岡', abstract_2:[], view:[] },
       { day:'2', date:'2026/11/05', abstract_1:'湯布院－高千穗峽－真名井瀑布',
-        abstract_2:[{ name:'真名井瀑布【日本瀑布百選之一】' }],
+        abstract_2:[{ name:'真名井瀑布【日本瀑布百選之一】', images:'https://example.com/unrelated-train.jpg' }],
         view:[{ name:'真名井瀑布', images:'https://example.com/waterfall.jpg', memo_2:'約17公尺高的瀑布美景' }] }
     ] });
   };
@@ -223,6 +223,7 @@ test('searches hidden attractions inside the complete daily itinerary', async ()
   assert.equal(result.results[0].matches[0].day, 2);
   assert.match(result.results[0].matches[0].excerpt, /真名井瀑布/);
   assert.equal(result.results[0].matches[0].attractionDetails[0].name, '真名井瀑布【日本瀑布百選之一】');
+  assert.equal(result.results[0].matches[0].attractionDetails[0].image, '');
   assert.match(result.results[0].matches[0].attractionDetails[1].description, /約17公尺/);
 });
 

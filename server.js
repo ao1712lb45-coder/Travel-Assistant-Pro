@@ -206,10 +206,14 @@ async function fetchItinerarySchedule(code, fetchImpl = fetch) {
     const views = Array.isArray(row.view) ? row.view : [];
     const abstract = Array.isArray(row.abstract_2) ? row.abstract_2 : [];
     const hotels = row.hotel && Array.isArray(row.hotel.data) ? row.hotel.data : [];
-    const attractionDetails = [...abstract, ...views].map(item => ({
+    const attractionDetails = [
+      ...abstract.map(item => ({ ...item, _source:'abstract' })),
+      ...views.map(item => ({ ...item, _source:'view' }))
+    ].map(item => ({
       name:htmlToText(item.name || ''),
       description:[item.memo_1, item.memo_2, item.memo_3].map(htmlToText).filter(Boolean).join('\n'),
-      image:/^https:\/\//i.test(String(item.images || '')) ? String(item.images) : ''
+      image:item._source === 'view' && /^https:\/\//i.test(String(item.images || '')) ? String(item.images) : '',
+      source:item._source
     })).filter(item => item.name);
     const attractions = [...new Set(attractionDetails.map(item => item.name))];
     const content = [row.abstract_1, ...attractions, row.memo_1, row.memo_2, row.memo_3,
