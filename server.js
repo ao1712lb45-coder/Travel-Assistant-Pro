@@ -12,6 +12,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const ITTMS_AGENT = '3004C5';
 const BESTTOUR_HOSTS = new Set(['besttour.com.tw', 'www.besttour.com.tw']);
 const ITTMS_HOSTS = new Set(['itinerary.ittms.com.tw']);
+const ITINERARY_IMAGE_HOSTS = new Set(['www.hsihung.com.tw','hsihung.com.tw','www.besttour.com.tw','besttour.com.tw']);
 const SEARCH_DESTINATION_ALIASES = {
   '越南':['越南','河內','峴港','富國島','胡志明','芽莊','下龍灣','沙壩','中越','北越','南越'],
   '泰國':['泰國','曼谷','清邁','清萊','普吉島','蘇美島','芭達雅','華欣','考艾','大城','喀比','甲米','皮皮島'],
@@ -205,11 +206,16 @@ async function fetchItinerarySchedule(code, fetchImpl = fetch) {
     const views = Array.isArray(row.view) ? row.view : [];
     const abstract = Array.isArray(row.abstract_2) ? row.abstract_2 : [];
     const hotels = row.hotel && Array.isArray(row.hotel.data) ? row.hotel.data : [];
-    const attractions = [...new Set([...abstract.map(item => htmlToText(item.name || '')), ...views.map(item => htmlToText(item.name || ''))].filter(Boolean))];
+    const attractionDetails = [...abstract, ...views].map(item => ({
+      name:htmlToText(item.name || ''),
+      description:[item.memo_1, item.memo_2, item.memo_3].map(htmlToText).filter(Boolean).join('\n'),
+      image:/^https:\/\//i.test(String(item.images || '')) ? String(item.images) : ''
+    })).filter(item => item.name);
+    const attractions = [...new Set(attractionDetails.map(item => item.name))];
     const content = [row.abstract_1, ...attractions, row.memo_1, row.memo_2, row.memo_3,
       ...views.flatMap(item => [item.name, item.memo_1, item.memo_2, item.memo_3]),
       row.breakfast, row.lunch, row.dinner, ...hotels.map(item => item.name)].map(htmlToText).filter(Boolean).join('\n');
-    return { day:Number(row.day) || null, date:String(row.date || ''), title:htmlToText(row.abstract_1 || ''), content, attractions,
+    return { day:Number(row.day) || null, date:String(row.date || ''), title:htmlToText(row.abstract_1 || ''), content, attractions, attractionDetails,
       images:views.map(item => item.images).filter(url => /^https:\/\//i.test(String(url || ''))) };
   });
 }
@@ -223,8 +229,9 @@ function matchSchedule(schedule, keywords) {
     if (!matchedTerms.length) return;
     const first = Math.min(...matchedTerms.map(term => lower.indexOf(term)).filter(index => index >= 0));
     const start = Math.max(0, first - 45), end = Math.min(day.content.length, first + 115);
+    const attractionDetails=(day.attractionDetails||[]).filter(item=>matchedTerms.some(term=>item.name.toLowerCase().includes(term)||item.description.toLowerCase().includes(term)));
     matches.push({ day:day.day, date:day.date, title:day.title, matchedTerms, excerpt:day.content.slice(start, end).replace(/\s+/g, ' '),
-      attractions:day.attractions.filter(name => matchedTerms.some(term => name.toLowerCase().includes(term))), images:day.images.slice(0, 4) });
+      attractions:day.attractions.filter(name => matchedTerms.some(term => name.toLowerCase().includes(term))), attractionDetails, images:day.images.slice(0, 4) });
   });
   return matches;
 }
@@ -242,6 +249,20 @@ async function searchItineraryContents(codes, keywords, fetchImpl = fetch) {
   }
   await Promise.all(Array.from({ length:Math.min(6, list.length) }, worker));
   return { checked:list.length, results:results.filter(item => item && item.matches.length) };
+}
+
+async function fetchItineraryImage(value, fetchImpl = fetch) {
+  let url; try { url = new URL(String(value || '')); } catch (_) { throw new FetchError('INVALID_IMAGE_URL', '景點圖片網址無法辨識。'); }
+  if (url.protocol !== 'https:' || !ITINERARY_IMAGE_HOSTS.has(url.hostname.toLowerCase())) throw new FetchError('IMAGE_HOST_NOT_ALLOWED', '只允許讀取行程官網的景點圖片。', 403);
+  const response = await fetchImpl(url, { headers:{ accept:'image/png,image/jpeg' }, redirect:'follow' });
+  if (!response.ok) throw new FetchError('IMAGE_FETCH_FAILED', '景點圖片暫時無法讀取。', 502);
+  const type = String(response.headers.get('content-type') || '').split(';')[0].toLowerCase();
+  if (!['image/png','image/jpeg'].includes(type)) throw new FetchError('INVALID_IMAGE_TYPE', '景點圖片格式不是 JPG 或 PNG。', 415);
+  const declared = Number(response.headers.get('content-length') || 0);
+  if (declared > 8 * 1024 * 1024) throw new FetchError('IMAGE_TOO_LARGE', '景點圖片超過 8 MB。', 413);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > 8 * 1024 * 1024) throw new FetchError('IMAGE_TOO_LARGE', '景點圖片超過 8 MB。', 413);
+  return { data:`data:${type};base64,${bytes.toString('base64')}`, type, name:path.basename(url.pathname) || '景點圖片' };
 }
 
 function validSearchDate(value) {
@@ -464,6 +485,9 @@ function createServer(options = {}) {
           String(requestUrl.searchParams.get('codes') || '').split(','), String(requestUrl.searchParams.get('keywords') || '').split(','), fetchImpl
         ) });
       }
+      if (req.method === 'GET' && requestUrl.pathname === '/api/besttour/image') {
+        return sendJson(res, 200, { ok:true, data:await fetchItineraryImage(requestUrl.searchParams.get('url'), fetchImpl) });
+      }
       if (req.method === 'GET' && serveFile(res, requestUrl.pathname)) return;
       sendJson(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '找不到指定資源。' } });
     } catch (error) {
@@ -480,7 +504,7 @@ if (require.main === module) {
 }
 
 module.exports = { FetchError, ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchOfficialItinerary,
-  fetchBesttourApiItinerary, fetchItinerarySchedule, matchSchedule, searchItineraryContents, fetchBesttourSearch, fetchItineraryPage, fetchBesttourPage,
+  fetchBesttourApiItinerary, fetchItinerarySchedule, matchSchedule, searchItineraryContents, fetchItineraryImage, fetchBesttourSearch, fetchItineraryPage, fetchBesttourPage,
   BACKGROUND_SEARCH_KEYWORDS, taipeiCatalogRange, fetchBackgroundCatalog, refreshDriveCatalog, startBackgroundCatalogRefresh,
   safeEqual, isAuthorized, createServer };
 

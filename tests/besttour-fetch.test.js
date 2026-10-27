@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchItineraryPage, fetchBesttourSearch, fetchItinerarySchedule, searchItineraryContents, createServer } = require('../server');
+const { ITTMS_AGENT, validateItineraryUrl, validateBesttourUrl, htmlToText, fetchItineraryPage, fetchBesttourSearch, fetchItinerarySchedule, searchItineraryContents, fetchItineraryImage, createServer } = require('../server');
 
 test('accepts a Besttour itinerary URL', () => {
   const result = validateItineraryUrl('https://www.besttour.com.tw/itinerary/TYO05JX260726PJ');
@@ -222,4 +222,8 @@ test('searches hidden attractions inside the complete daily itinerary', async ()
   assert.equal(result.checked, 1);
   assert.equal(result.results[0].matches[0].day, 2);
   assert.match(result.results[0].matches[0].excerpt, /真名井瀑布/);
+  assert.equal(result.results[0].matches[0].attractionDetails[0].name, '真名井瀑布【日本瀑布百選之一】');
+  assert.match(result.results[0].matches[0].attractionDetails[1].description, /約17公尺/);
 });
+
+test('image proxy only embeds approved itinerary images',async()=>{const mockFetch=async()=>new Response(Uint8Array.from([0x89,0x50,0x4e,0x47]),{status:200,headers:{'content-type':'image/png'}});const image=await fetchItineraryImage('https://www.hsihung.com.tw/intranet/view/images/zoo.png',mockFetch);assert.match(image.data,/^data:image\/png;base64,/);await assert.rejects(()=>fetchItineraryImage('https://example.com/private.png',mockFetch),/只允許讀取行程官網/)});
