@@ -5,11 +5,12 @@
   const panel = document.querySelector('.wrap > .panel');
   if (!panel || panel.dataset.workspaceReady === 'true') return;
   const sections = Array.from(panel.querySelectorAll(':scope > .section'));
-  if (sections.length < 10) return;
+  if (sections.length < 11) return;
   const crmSection = document.getElementById('crmSection');
   const enterpriseSection = document.getElementById('enterpriseProposalSection');
   const assistantSection = document.getElementById('searchAssistantSection');
-  if (!crmSection || !enterpriseSection || !assistantSection) return;
+  const wordSection = document.getElementById('wordItinerarySection');
+  if (!crmSection || !enterpriseSection || !assistantSection || !wordSection) return;
 
   const views = [
     { id:'start', label:'匯入行程', icon:'1', sections:sections.slice(0,2), help:'輸入團號或網址，自動抓取並解析官方行程。' },
@@ -20,7 +21,8 @@
     { id:'database', label:'行程資料庫', icon:'6', sections:[sections[6]], help:'同步、搜尋、匯入與備份行程資料。' },
     { id:'crm', label:'客戶 CRM', icon:'7', sections:[crmSection], help:'記錄客戶喜好與避開條件，快速檢查行程適配度。' },
     { id:'enterprise', label:'企業福委', icon:'8', sections:[enterpriseSection], help:'一次選取多個行程，產生企業戶專用的提案電子郵件。' },
-    { id:'assistant', label:'搜尋助手', icon:'9', sections:[assistantSection], help:'用一句話搜尋指定月份與景點，勾選行程後產生 LINE 社群文案。' }
+    { id:'assistant', label:'搜尋助手', icon:'9', sections:[assistantSection], help:'用一句話搜尋指定月份與景點，勾選行程後產生 LINE 社群文案。' },
+    { id:'word', label:'行程 Word', icon:'10', sections:[wordSection], help:'建立可編輯的圖文行程表，將景點圖片直接嵌入 Word 文件。' }
   ];
 
   const rawTextSection = sections[1];
@@ -48,7 +50,7 @@
     .workspace-main>.panel{overflow:visible}.workspace-main>.panel>.section{display:none}.workspace-main>.panel>.section.workspace-visible{display:block;animation:workspaceIn .18s ease-out}.workspace-main>.panel>.section.workspace-visible+.workspace-visible{border-top:1px solid #edf1f6}.workspace-main>.panel>.raw-text-collapsed{display:none!important}
     .workspace-actions{display:flex;justify-content:space-between;gap:8px;padding:12px 0 4px}.workspace-actions button{min-width:118px}.workspace-actions .next{color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand2))}.mobile-nav{display:none}
     @keyframes workspaceIn{from{opacity:.35;transform:translateY(4px)}to{opacity:1;transform:none}}
-    @media(max-width:820px){body{padding-bottom:72px}header{position:relative}.workspace{display:block;margin:10px auto;padding:0 8px}.workspace-nav{display:none}.workspace-toolbar{position:sticky;top:6px;z-index:20;padding:10px 12px}.workspace-progress{font-size:11px}.workspace-main>.panel{border-radius:13px}.mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(9,minmax(0,1fr));left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.97);border-top:1px solid #d9e2ee;padding:6px 4px max(6px,env(safe-area-inset-bottom));box-shadow:0 -5px 18px rgba(23,32,51,.12)}.mobile-nav button{padding:5px 1px;background:transparent;border-radius:8px;color:#667085;font-size:10px;display:grid;justify-items:center;gap:2px}.mobile-nav button.active{background:#fff1f2;color:#9f1239}.mobile-nav .nav-step{width:25px;height:25px;border-radius:8px}.workspace-actions{padding:10px 2px}.workspace-actions button{min-width:0;flex:1}.section{padding:13px}}
+    @media(max-width:820px){body{padding-bottom:72px}header{position:relative}.workspace{display:block;margin:10px auto;padding:0 8px}.workspace-nav{display:none}.workspace-toolbar{position:sticky;top:6px;z-index:20;padding:10px 12px}.workspace-progress{font-size:11px}.workspace-main>.panel{border-radius:13px}.mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(10,minmax(0,1fr));left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.97);border-top:1px solid #d9e2ee;padding:6px 4px max(6px,env(safe-area-inset-bottom));box-shadow:0 -5px 18px rgba(23,32,51,.12)}.mobile-nav button{padding:5px 1px;background:transparent;border-radius:8px;color:#667085;font-size:10px;display:grid;justify-items:center;gap:2px}.mobile-nav button.active{background:#fff1f2;color:#9f1239}.mobile-nav .nav-step{width:25px;height:25px;border-radius:8px}.workspace-actions{padding:10px 2px}.workspace-actions button{min-width:0;flex:1}.section{padding:13px}}
   `;
   document.head.appendChild(style);
 

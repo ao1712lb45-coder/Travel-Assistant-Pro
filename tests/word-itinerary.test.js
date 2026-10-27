@@ -1,0 +1,12 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {blankState,normalizeState,buildDocx}=require('../src/word-itinerary');
+
+async function storedZipEntries(blob){const bytes=new Uint8Array(await blob.arrayBuffer()),view=new DataView(bytes.buffer),decoder=new TextDecoder(),entries=new Map();let offset=0;while(offset+30<=bytes.length&&view.getUint32(offset,true)===0x04034b50){const size=view.getUint32(offset+18,true),nameLength=view.getUint16(offset+26,true),extraLength=view.getUint16(offset+28,true),name=decoder.decode(bytes.slice(offset+30,offset+30+nameLength)),start=offset+30+nameLength+extraLength;entries.set(name,bytes.slice(start,start+size));offset=start+size}return entries}
+
+test('word itinerary defaults to five editable days and accepts legacy text-only days',()=>{assert.equal(blankState().days.length,5);const value=normalizeState({title:'大阪三日',subtitle:'',notes:'',days:[{route:'第一天',flight:'',breakfast:'自理',lunch:'自理',dinner:'自理',hotel:'大阪'}]});assert.equal(value.days[0].route,'第一天');assert.deepEqual(value.days[0].attractions,[])});
+
+test('generated docx embeds attraction images and preserves itinerary facts',async()=>{const state=blankState(1);state.title='大阪圖文三日';state.subtitle='團號 OSA03AA';Object.assign(state.days[0],{route:'桃園／大阪',flight:'BR 132',breakfast:'自理',lunch:'機上餐',dinner:'日式料理',hotel:'大阪飯店'});state.days[0].attractions.push({name:'大阪城',description:'參觀日本歷史名城。',image:{name:'osaka.png',type:'image/png',width:1,height:1,data:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='}});const entries=await storedZipEntries(buildDocx(state));assert.ok(entries.has('word/media/image1.png'));assert.equal(entries.get('word/media/image1.png')[0],0x89);const xml=new TextDecoder().decode(entries.get('word/document.xml'));assert.match(xml,/大阪圖文三日/);assert.match(xml,/大阪城/);assert.match(xml,/參觀日本歷史名城/);assert.match(xml,/r:embed="rIdImage1"/);const rels=new TextDecoder().decode(entries.get('word/_rels/document.xml.rels'));assert.match(rels,/Target="media\/image1\.png"/)});
+
+test('word itinerary supports multiple attractions on the same day',async()=>{const state=blankState(1);state.title='四國五日';state.days[0].attractions=[{name:'金刀比羅宮',description:'參拜',image:null},{name:'倉敷美觀地區',description:'散策',image:null}];const entries=await storedZipEntries(buildDocx(state)),xml=new TextDecoder().decode(entries.get('word/document.xml'));assert.match(xml,/金刀比羅宮/);assert.match(xml,/倉敷美觀地區/)});
