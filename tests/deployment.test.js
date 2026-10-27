@@ -41,11 +41,13 @@ test('online deployment protects the app but leaves health checks available', as
     assert.match(page, /daily-prices\.js/);
     assert.match(page, /search-assistant\.js/);
     assert.match(page, /cloud-database\.js/);
+    assert.match(page, /word-itinerary\.js/);
     assert.match(page, /crm\.js/);
     assert.match(page, /v2-ui\.js/);
     assert.ok(page.indexOf('crm.js') < page.indexOf('app-shell.js'), 'CRM must load before the workspace reads its sections');
     assert.ok(page.indexOf('daily-prices.js') < page.indexOf('besttour-url-fetch.js'), 'daily prices must load before itinerary fetching starts');
     assert.ok(page.indexOf('cloud-database.js') < page.indexOf('app-shell.js'), 'cloud database must load before the workspace starts');
+    assert.ok(page.indexOf('word-itinerary.js') < page.indexOf('app-shell.js'), 'Word itinerary must load before the workspace starts');
     const cloudDatabase = await fetch(`${base}/src/cloud-database.js`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(cloudDatabase.status, 200);
     const cloudDatabaseScript = await cloudDatabase.text();
@@ -100,8 +102,9 @@ test('online deployment protects the app but leaves health checks available', as
     const shell = await fetch(`${base}/src/app-shell.js`, { headers:{ authorization:basic('team','secret') } });
     assert.equal(shell.status, 200);
     const shellScript = await shell.text();
-    assert.match(shellScript, /sections\.length < 10/);
+    assert.match(shellScript, /sections\.length < 11/);
     assert.match(shellScript, /label:'搜尋助手'/);
+    assert.match(shellScript, /label:'行程 Word'/);
     assert.match(shellScript, /DOMContentLoaded', install/);
     assert.equal(authorized.headers.get('x-frame-options'), 'DENY');
   } finally { await new Promise(resolve => server.close(resolve)); }
