@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {blankState,normalizeState,catalogCandidates,bestAttractionMatch,buildDocx}=require('../src/word-itinerary');
+const {blankState,normalizeState,tripMatchesRegion,catalogCandidates,attractionChoices,bestAttractionMatch,buildDocx}=require('../src/word-itinerary');
 
 async function storedZipEntries(blob){const bytes=new Uint8Array(await blob.arrayBuffer()),view=new DataView(bytes.buffer),decoder=new TextDecoder(),entries=new Map();let offset=0;while(offset+30<=bytes.length&&view.getUint32(offset,true)===0x04034b50){const size=view.getUint32(offset+18,true),nameLength=view.getUint16(offset+26,true),extraLength=view.getUint16(offset+28,true),name=decoder.decode(bytes.slice(offset+30,offset+30+nameLength)),start=offset+30+nameLength+extraLength;entries.set(name,bytes.slice(start,start+size));offset=start+size}return entries}
 
@@ -20,3 +20,9 @@ test('attraction lookup never borrows a day title or unrelated image',()=>{const
 test('attraction lookup prefers the verified attraction record with its own content',()=>{const result=bestAttractionMatch([{code:'HKD05BR270101A',matches:[{day:2,attractionDetails:[{name:'函館百萬夜景',description:'',image:'',source:'abstract'},{name:'函館百萬夜景',description:'從函館山眺望城市燈火。',image:'https://example.com/night-view.jpg',source:'view'}]}]}],'百萬夜景');assert.equal(result.description,'從函館山眺望城市燈火。');assert.match(result.imageUrl,/night-view\.jpg$/)});
 
 test('regional attraction lookup also checks nearby tours whose summaries omit the attraction',()=>{const trips=[{code:'TYO05BR261225A',title:'東京五日',highlights:['東京鐵塔']},{code:'HKD06JX261028HX',title:'北海道六日',highlights:['旭山動物園']},{code:'PUS05BX261028A',title:'韓國釜山五日',highlights:['海雲台']}],codes=catalogCandidates(trips,'流星瀑布',50,'日本');assert.ok(codes.includes('HKD06JX261028HX'));assert.ok(!codes.includes('PUS05BX261028A'))});
+
+test('all broad itinerary regions recognize representative tour codes',()=>{for(const [region,code] of [['日本','HKD06JX261028HX'],['韓國','CJJ05LJ270101A'],['中國','DYG06BR270101A'],['東南亞','PQC05VJ270101A'],['美加','YVR08CI270101A'],['紐澳','AKL10CI270101A'],['中東非洲','IST10TK270101A']])assert.equal(tripMatchesRegion({code,title:''},region),true,`${region} ${code}`)});
+
+test('seasonal attraction variants remain separate and keep their own text and image',()=>{const choices=attractionChoices([{code:'HKD06JX261028HX',matches:[{day:3,attractionDetails:[{name:'層雲峽銀河、流星瀑布',description:'夫妻瀑布景觀。',image:'https://example.com/waterfall-normal.jpg',source:'view'},{name:'【賞楓】層雲峽銀河、流星瀑布',description:'十月中旬可欣賞紅葉。',image:'https://example.com/waterfall-maple.jpg',source:'view'}]}]}],'流星瀑布');assert.equal(choices.length,2);const maple=choices.find(item=>item.season==='賞楓／紅葉'),normal=choices.find(item=>item.season==='一般行程');assert.match(maple.imageUrl,/maple/);assert.match(maple.description,/紅葉/);assert.match(normal.imageUrl,/normal/);assert.match(normal.description,/夫妻瀑布/)});
+
+test('cherry blossom and ordinary versions are offered as different choices',()=>{const choices=attractionChoices([{code:'TYO05BR270401A',matches:[{day:2,attractionDetails:[{name:'上野公園',description:'東京市區公園。',image:'https://example.com/ueno.jpg',source:'view'},{name:'【賞櫻】上野恩賜公園',description:'春季櫻花盛開。',image:'https://example.com/ueno-sakura.jpg',source:'view'}]}]}],'上野');assert.deepEqual(new Set(choices.map(item=>item.season)),new Set(['一般行程','賞櫻／花季']));for(const item of choices){assert.ok(item.description);assert.ok(item.imageUrl)}});
