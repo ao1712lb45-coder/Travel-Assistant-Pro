@@ -60,14 +60,20 @@ function install(){if(typeof document==='undefined'||document.getElementById('wo
     event.preventDefault();event.stopImmediatePropagation();
     const dayIndex=Number(button.dataset.day),itemIndex=Number(button.dataset.attraction),item=state.days[dayIndex]?.attractions[itemIndex],query=String(item?.name||'').trim();
     if(!query){show('請先輸入部分景點名稱，例如「綠山國家」。','warn');return}
-    const database=root.TravelTripStorage?.read?.()||[],codes=catalogCandidates(database,query);
+    const database=root.TravelTripStorage?.read?.()||[],codes=catalogCandidates(database,query,300);
     if(!codes.length){show(`行程資料庫找不到包含「${query}」的行程，請先同步相關地區行程。`,'warn');return}
     const original=button.textContent;button.disabled=true;button.textContent='資料庫查找中…';
     try{
-      const params=new URLSearchParams({codes:codes.join(','),keywords:query}),response=await fetch('/api/besttour/content-search?'+params),payload=await response.json();
-      if(!response.ok||!payload.ok)throw Error(payload.error?.message||'景點資料查詢失敗');
-      const choices=attractionChoices(payload.data.results,query);
-      if(!choices.length){show(`已檢查 ${payload.data.checked||codes.length} 團，找不到「${query}」的完整景點資料。`,'warn');return}
+      let checked=0,allResults=[],foundBatch=-1;
+      for(let offset=0;offset<codes.length;offset+=50){
+        button.textContent=`資料庫查找中… ${Math.min(offset+50,codes.length)}/${codes.length}`;
+        const params=new URLSearchParams({codes:codes.slice(offset,offset+50).join(','),keywords:query}),response=await fetch('/api/besttour/content-search?'+params),payload=await response.json();
+        if(!response.ok||!payload.ok)throw Error(payload.error?.message||'景點資料查詢失敗');
+        checked+=payload.data.checked||Math.min(50,codes.length-offset);allResults.push(...(payload.data.results||[]));
+        if(attractionChoices(allResults,query).some(choice=>choice.source==='view'&&choice.description&&choice.imageUrl)){if(foundBatch<0)foundBatch=offset;else if(offset>=foundBatch+50)break}
+      }
+      const choices=attractionChoices(allResults,query);
+      if(!choices.length){show(`已分批檢查 ${checked} 團，找不到「${query}」的完整景點資料。`,'warn');return}
       button.disabled=false;button.textContent=original;
       const seasonalVersions=new Set(choices.map(choice=>choice.season)),match=choices.length>1&&(seasonalVersions.size>1||choices.some(choice=>choice.name!==choices[0].name))?await chooseAttractionVersion(choices,query,button):choices[0];
       if(!match){show('已取消套用景點版本。','warn');return}
