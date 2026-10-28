@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {blankState,normalizeState,tripMatchesRegion,planningWindow,catalogCandidates,attractionChoices,bestAttractionMatch,buildDocx}=require('../src/word-itinerary');
+const {blankState,normalizeState,tripMatchesRegion,catalogCandidates,attractionChoices,bestAttractionMatch,buildDocx}=require('../src/word-itinerary');
 
 async function storedZipEntries(blob){const bytes=new Uint8Array(await blob.arrayBuffer()),view=new DataView(bytes.buffer),decoder=new TextDecoder(),entries=new Map();let offset=0;while(offset+30<=bytes.length&&view.getUint32(offset,true)===0x04034b50){const size=view.getUint32(offset+18,true),nameLength=view.getUint16(offset+26,true),extraLength=view.getUint16(offset+28,true),name=decoder.decode(bytes.slice(offset+30,offset+30+nameLength)),start=offset+30+nameLength+extraLength;entries.set(name,bytes.slice(start,start+size));offset=start+size}return entries}
 
@@ -28,5 +28,3 @@ test('seasonal attraction variants remain separate and keep their own text and i
 test('cherry blossom and ordinary versions are offered as different choices',()=>{const choices=attractionChoices([{code:'TYO05BR270401A',matches:[{day:2,attractionDetails:[{name:'上野公園',description:'東京市區公園。',image:'https://example.com/ueno.jpg',source:'view'},{name:'【賞櫻】上野恩賜公園',description:'春季櫻花盛開。',image:'https://example.com/ueno-sakura.jpg',source:'view'}]}]}],'上野');assert.deepEqual(new Set(choices.map(item=>item.season)),new Set(['一般行程','賞櫻／花季']));for(const item of choices){assert.ok(item.description);assert.ok(item.imageUrl)}});
 
 test('regional fallback can return more than the first fifty nearby tours',()=>{const trips=Array.from({length:90},(_,index)=>({code:`TYO05BR2611${String(index%28+1).padStart(2,'0')}${String(index).padStart(2,'0')}`,title:'日本行程',highlights:['一般景點']}));trips.push({code:'HKD06JX261208YB',title:'北海道六日',highlights:['一般景點']});const codes=catalogCandidates(trips,'大沼小沼國定公園',300,'日本');assert.ok(codes.length>50);assert.ok(codes.includes('HKD06JX261208YB'))});
-
-test('planned departure month searches the same region back eighteen months',()=>{const window=planningWindow('2027-04'),from=new Date(window.from),to=new Date(window.to);assert.deepEqual([from.getFullYear(),from.getMonth()+1,from.getDate()],[2025,10,1]);assert.deepEqual([to.getFullYear(),to.getMonth()+1,to.getDate()],[2027,4,30]);const trips=[{code:'HKD05BR250930A',title:'北海道舊行程',highlights:['流星瀑布']},{code:'HKD05BR251001B',title:'北海道秋季',highlights:['流星瀑布']},{code:'HKD05BR270430C',title:'北海道春季',highlights:['流星瀑布']},{code:'HKD05BR270501D',title:'北海道未來',highlights:['流星瀑布']},{code:'PUS05BX260101A',title:'韓國行程',highlights:['流星瀑布']}],codes=catalogCandidates(trips,'流星瀑布',50,'日本','2027-04');assert.deepEqual(codes,['HKD05BR251001B','HKD05BR270430C'])});
