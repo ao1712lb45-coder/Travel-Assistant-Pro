@@ -437,7 +437,9 @@ function serveFile(res, pathname) {
     data = Buffer.from(data.toString('utf8').replace('</body>', injection + '</body>'));
   }
   const types = { '.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg' };
-  res.writeHead(200, { 'content-type': types[path.extname(target).toLowerCase()] || 'application/octet-stream' });
+  const headers = { 'content-type': types[path.extname(target).toLowerCase()] || 'application/octet-stream' };
+  if (path.extname(target).toLowerCase() === '.js') headers['cache-control'] = 'no-cache, must-revalidate';
+  res.writeHead(200, headers);
   res.end(data); return true;
 }
 
