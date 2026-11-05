@@ -4,7 +4,12 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const dns = require('node:dns');
 const googleDrive = require('./google-drive-store');
+
+// Render can resolve Besttour's API to an IPv6 route that never completes.
+// Prefer the working IPv4 route while still allowing IPv6 as a fallback.
+dns.setDefaultResultOrder('ipv4first');
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
